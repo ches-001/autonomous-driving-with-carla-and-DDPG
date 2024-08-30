@@ -1,0 +1,59 @@
+seed: 3407
+
+model_config:
+  hidden_dim: 256
+  img_enc_output_dim: 512
+  measurement_enc_output_dim: 128
+  action_enc_output_dim: 128
+  img_enc_dropout: 0.4
+  measurement_enc_dropout: 0.1
+  action_enc_dropout: 0.1
+  block: BasicBlock
+  block_layers: [1, 1, 1, 1]
+
+optim_config:
+  actor:
+    optim_name: Adam
+    lr: 1.0e-3
+    weight_decay: 0.0
+
+  critic:
+    optim_name: Adam
+    lr: 1.0e-3
+    weight_decay: 0.0
+  
+env_config:
+  cam_w: 320
+  cam_h: 240
+  fov: 110
+  fps: 15
+  filterv: model3
+  action_eps: 0.05
+  max_travel_distance: 2500
+  min_speed: 15.0
+  max_speed: 60.0
+  target_speed: 25.0
+  max_center_deviation: 3.0
+  max_distance_from_waypoint: 3.0
+  max_center_angle_deviation: 90
+  terminal_on_collision: True
+  terminal_on_lane_invasion: True
+  terminal_on_max_speed: True
+  terminal_on_max_angle_deviation: False
+  terminal_on_max_center_deviation: True
+  track_spectator: True
+
+spawn_npc_config:
+  num_vehicles: 10
+  num_walkers: 50
+  safe: True
+  filterv: vehicle.*
+  filterw: walker.pedestrian.*
+  
+trainer_config:
+  action_noise_std: 0.1
+  replay_buffer_size: 30_000
+  clip_grads: True
+  tau: 1.0e-3
+  gamma: 0.99
+  device: cuda
