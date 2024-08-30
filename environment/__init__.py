@@ -4,9 +4,12 @@ import glob
 import os
 import sys
 try:
-    sys.path.append(glob.glob("CARLA_0.9.8/WindowsNoEditor/PythonAPI/carla/dist/carla-*%d.%d-%s.egg" % (
+    inst_dir = "CARLA_0.9.8/WindowsNoEditor" if os.name == "nt" else "CARLA_0.9.8"
+    path = glob.glob(os.path.join(inst_dir, "PythonAPI/carla/dist/carla-*%d.%d-%s.egg" % (
         sys.version_info.major,
         sys.version_info.minor,
-        "win-amd64" if os.name == "nt" else "linux-x86_64"))[0])
+        "win-amd64" if os.name == "nt" else "linux-x86_64")))[0]
+    
+    sys.path.append(path)
 except IndexError:
     pass
