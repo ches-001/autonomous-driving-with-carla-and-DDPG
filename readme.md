@@ -73,8 +73,6 @@ $$r_{spd} = \begin{cases} v / v_{min} & \text{if } v < v_{vmin} \\ \\
 1.0 & \text{if } \text{otherwise}
 \end{cases}$$
 
-<br>
-<br>
 
 $$r_{dev} = \max{(1 - (\frac {dev(\vec{w_{d}}, \hspace{2mm} \vec{v})} {\theta_{max}}), \hspace{2mm} 0.0)} \cdot \max{(1 - (\frac {D(w_p, \hspace{2mm} x_p)} {d_{max}}), \hspace{2mm} 0.0)}$$
 
