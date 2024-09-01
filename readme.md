@@ -66,8 +66,7 @@ In this implementation, 4 reward functions were combined to handle speed of vehi
 
 $$r_{spd} = \max{(1 - \frac {\begin{cases}{\|x_p - {w_p}_t\|} & \text{if } {\|{w_p}_{t+1} - {w_p}_t\|} = 0 \\ \\
 \frac {\|(({w_p}_{t+1} - {w_p}_t) \times ({w_p}_t - x_p))\|} {\|{w_p}_{t+1} - {w_p}_t\|} & \text{if } otherwise
-\end{cases}} {\phi_{max}}, \hspace{3mm} 0.0)}\cdot \begin{cases}
-v / v_{min} & \text{if } v < v_{vmin} \\ \\
+\end{cases}} {\phi_{max}}, \hspace{3mm} 0.0)}\cdot \begin{cases} v / v_{min} & \text{if } v < v_{vmin} \\ \\
 1.0 - \frac{(v - v_{target})} {v_{max} - v_{target}} & \text{if } v > v_{target} \\ \\
 1.0 & \text{if } \text{otherwise}
 \end{cases}$$
