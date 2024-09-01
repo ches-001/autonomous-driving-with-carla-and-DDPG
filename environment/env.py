@@ -11,8 +11,8 @@ from .navigation.local_planner import RoadOption
 from .navigation.global_route_planner import GlobalRoutePlanner
 from .navigation.global_route_planner_dao import GlobalRoutePlannerDAO
 
-REWARD_PER_COLLISION = -4
-REWARD_PER_LANE_INVASION = -4
+REWARD_PER_COLLISION = -5
+REWARD_PER_LANE_INVASION = -5
 ROAD_OPTION_MANEUVERS = [
     RoadOption.VOID,
     RoadOption.LEFT,
