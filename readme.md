@@ -76,9 +76,10 @@ $$cd_{norm} = \max{(1 - \frac {cd} {\phi_{max}}, \hspace{3mm} 0.0)}$$
 
 <br>
 
-$$cd={\begin{cases}{||x_p - {w_p}_t||} & \text{if } {||{w_p}_{t+1} - {w_p}_t||} = 0 \\ \\
-\frac {||(({w_p}_{t+1} - {w_p}_t) \times ({w_p}_t - x_p))||} {||{w_p}_{t+1} - {w_p}_t||} & \text{if } otherwise
+$$cd={\begin{cases}{\|x_p - {w_p}_t\|} & \text{if } {\|{w_p}_{t+1} - {w_p}_t\|} = 0 \\ \\
+\frac {\|(({w_p}_{t+1} - {w_p}_t) \times ({w_p}_t - x_p))\|} {\|{w_p}_{t+1} - {w_p}_t\|} & \text{if } otherwise
 \end{cases}}$$
+
 <br>
 <br>
 
