@@ -64,15 +64,16 @@ The image observations and speed measurements of the vehicle do not contain rele
 ### Reward Function Overview
 In this implementation, 4 reward functions were combined to handle speed of vehicle $r_{spd}$, deviation from center of lane $r_{dev}$, collision $r_{col}$ and lane invasion $r_{inv}$
 
-$$\max{(1 - w, 0.0)}$$
-
-$$w = \frac {\begin{cases}{\|x_p - {w_p}_t\|} & \text{if } {\|{w_p}_{t+1} - {w_p}_t\|} = 0 \\ \\ \frac {\|(({w_p}_{t+1} - {w_p}_t) \times ({w_p}_t - x_p))\|} {\|{w_p}_{t+1} - {w_p}_t\|}& \text{if } otherwise \end{cases}} {\phi_{max}}, \hspace{3mm}$$
-
-$$r_{spd} = \begin{cases} v / v_{min} & \text{if } v < v_{vmin} \\ \\
+$$r_{spd} = \max{(1 - \frac {\begin{cases}{\|x_p - {w_p}_t\|} & \text{if } {\|{w_p}_{t+1} - {w_p}_t\|} = 0 \\ \\
+\frac {\|(({w_p}_{t+1} - {w_p}_t) \times ({w_p}_t - x_p))\|} {\|{w_p}_{t+1} - {w_p}_t\|} & \text{if } otherwise
+\end{cases}} {\phi_{max}}, \hspace{3mm} 0.0)}\cdot \begin{cases}
+v / v_{min} & \text{if } v < v_{vmin} \\ \\
 1.0 - \frac{(v - v_{target})} {v_{max} - v_{target}} & \text{if } v > v_{target} \\ \\
 1.0 & \text{if } \text{otherwise}
 \end{cases}$$
 
+<br>
+<br>
 
 $$r_{dev} = \max{(1 - (\frac {dev(\vec{w_{d}}, \hspace{2mm} \vec{v})} {\theta_{max}}), \hspace{2mm} 0.0)} \cdot \max{(1 - (\frac {D(w_p, \hspace{2mm} x_p)} {d_{max}}), \hspace{2mm} 0.0)}$$
 
