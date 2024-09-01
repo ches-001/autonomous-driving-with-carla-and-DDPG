@@ -82,7 +82,7 @@ $$cd={\begin{cases}{\|x_p - {w_p}_t\|} & \text{if } {\|{w_p}_{t+1} - {w_p}_t\|} 
 
 $$\frac {\|(({w_p}_{t+1} - {w_p}_t) \times ({w_p}_t - x_p))\|} {\|{w_p}_{t+1} - {w_p}_t\|}$$
 
-$$\|{w_p}_{t+1} - {w_p}_t\|$$
+$$\|(({w_p}_{t+1} - {w_p}_t) \times ({w_p}_t - x_p))\|$$
 
 <br>
 <br>
