@@ -72,20 +72,14 @@ v / v_{min} & \text{if } v < v_{vmin} \\ \\
 
 <br>
 
-$$cd_{norm} = \max{(1 - \frac {cd} {\phi_{max}}, \hspace{3mm} 0.0)}$$
-
-<br>
-
-$$cd={\begin{cases}{\|x_p - {w_p}_t\|} & \text{if } {\|{w_p}_{t+1} - {w_p}_t\|} = 0 \\ \\
-\frac {\|(({w_p}_{t+1} - {w_p}_t) \times ({w_p}_t - x_p))\|} {\|{w_p}_{t+1} - {w_p}_t\|} & \text{if } otherwise
-\end{cases}}$$
+$$cd_{norm} = \max{(1 - \frac {CD({w_p}_t, {w_p}_{t+1}, x_p)} {\phi_{max}}, \hspace{3mm} 0.0)}$$
 
 <br>
 <br>
 
 $$r_{dev} = \max{(1 - (\frac {dev(\vec{w_{d}}, \hspace{2mm} \vec{v})} {\theta_{max}}), \hspace{2mm} 0.0)} \cdot \max{(1 - (\frac {D(w_p, \hspace{2mm} x_p)} {d_{max}}), \hspace{2mm} 0.0)}$$
 
-Where: $dev(., .)$ and $D(., .)$ calculates the angle between two vectors and the euclidean distance between two points respectively, $\vec{w_d}$ is the waypoint forward direction vector, $\vec{v}$ is the velocity vector of the vehicle, $\theta_{max}$ is the maximum allowed deviation from waypoint direction, $\phi_{max}$ is the maximum allowed deviation from center of lane, $w_p$ is the waypoint position in 3D space, $x_p$ is the position of vehicle in 3D space, $d_max$ is the max allowed disance between the vehicle and the corresponding waypoint along the route.
+Where: $CD(.,\hspace{1mm}.,\hspace{1mm}.)$, $dev(.,\hspace{1mm}.)$ and $D(.,\hspace{1mm}.)$ calculates the perpendicular distance of a location from a center position given a line running through the center, angle between two vectors and the euclidean distance between two points respectively, $\vec{w_d}$ is the waypoint forward direction vector, $\vec{v}$ is the velocity vector of the vehicle, $\theta_{max}$ is the maximum allowed deviation from waypoint direction, $\phi_{max}$ is the maximum allowed deviation from center of lane, $w_p$ is the waypoint position in 3D space, $x_p$ is the position of vehicle in 3D space, $d_max$ is the max allowed disance between the vehicle and the corresponding waypoint along the route.
 
 $$r_{col} = \begin{cases}
     -5 & \text{if } \text{collision} \\
