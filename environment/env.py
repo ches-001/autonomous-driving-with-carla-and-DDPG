@@ -3,10 +3,10 @@ import gym
 import logging
 import time
 import random
-import cv2
 import numpy as np
 from typing import List, Dict, Tuple, Optional
 from .utils import *
+from .tools.render import CarlaEnvRender
 from .navigation.local_planner import RoadOption
 from .navigation.global_route_planner import GlobalRoutePlanner
 from .navigation.global_route_planner_dao import GlobalRoutePlannerDAO
@@ -47,7 +47,8 @@ class CarlaEnv(gym.Env):
             terminal_on_max_speed: bool=True,
             terminal_on_max_angle_deviation: bool=False,
             terminal_on_max_center_deviation: bool=True,
-            track_spectator: bool=True
+            render_mode: bool="none",
+            render_scale: Optional[float]=None
         ):
         assert max_speed > target_speed > min_speed > 0
 
@@ -70,7 +71,7 @@ class CarlaEnv(gym.Env):
         self.terminal_on_max_speed = terminal_on_max_speed
         self.terminal_on_max_angle_deviation = terminal_on_max_angle_deviation
         self.terminal_on_max_center_deviation = terminal_on_max_center_deviation
-        self.track_spectator = track_spectator
+        self.render_mode = render_mode
 
         self._terminal_allowance_steps = 20
         self.closed = False
@@ -79,7 +80,6 @@ class CarlaEnv(gym.Env):
         self._blueprint_library = self._world.get_blueprint_library()
         self.vehicle_blueprint = random.choice(self._blueprint_library.filter(self.filterv))
         self._map = self._world.get_map()
-        self.spectator = self._world.get_spectator()
         self._actors = []
 
         self.observation_space = {
@@ -102,6 +102,13 @@ class CarlaEnv(gym.Env):
             np.asarray([1, 1]),
             dtype=np.float32
         )
+
+        if self.render_mode == "human":
+            self.renderer = CarlaEnvRender(self._world, world_scale=render_scale)
+            self._spectator_cam_h = self.renderer.main_height
+            self._spectator_cam_w = self.renderer.main_width + self.renderer.side_panel_width
+        else:
+            self._spectator_cam_h, self._spectator_cam_w = 480, 640
 
 
     def reset(self) -> Tuple[Dict[str, np.ndarray], Dict[str, np.ndarray]]:
@@ -155,15 +162,18 @@ class CarlaEnv(gym.Env):
                 else:
                     continue
 
+        # make and locate spectator
+        if not hasattr(self, "spectator") or self.spectator is None:
+            self.spectator = self._world.get_spectator()
+            self._attach_camera_to_spectator()
+        self.set_spectator_transform()
+
         # progress the world by one timstep
         self._world.tick()
 
         # necessary incase camera sensor / obs has not yet been registered
-        while not hasattr(self, "cam_obs"):
+        while not hasattr(self, "cam_obs") and (not hasattr(self, "spectator_cam_obs")):
             time.sleep(0.05)
-
-        # locate spectator
-        self.spectator.set_transform(start_point)
 
         # init other values
         self.prev_position = to_vector(self.vehicle.get_location())
@@ -204,9 +214,7 @@ class CarlaEnv(gym.Env):
             self.prev_action = action
             self.num_timesteps += 1
 
-        # track spectator camera
-        if self.track_spectator:
-            self.set_spectator_transform()
+        self.set_spectator_transform()
         
         # progress world by one timstep
         self._world.tick()
@@ -274,12 +282,7 @@ class CarlaEnv(gym.Env):
 
 
     def set_spectator_transform(self):
-        vtransform = self.vehicle.get_transform()
-        spectator_location = vtransform.location
-        spectator_location.y = spectator_location.y - 2.0
-        spectator_location.z = spectator_location.z + 2.0
-        spectator_transform = carla.Transform(spectator_location, vtransform.rotation)
-        self.spectator.set_transform(spectator_transform)
+        self.spectator.set_transform(self.vehicle.get_transform())
 
 
     def _make_world_synchronous(self):
@@ -294,18 +297,23 @@ class CarlaEnv(gym.Env):
         camera_bp.set_attribute("image_size_x", f"{self.cam_w}")
         camera_bp.set_attribute("image_size_y", f"{self.cam_h}")
         camera_bp.set_attribute("fov", f"{self.fov}")
-        spawn_point = self.vehicle.get_transform()
-        camera_transform = carla.Transform(
-            carla.Location(
-                x=spawn_point.location.x, 
-                y=spawn_point.location.y, 
-                z=spawn_point.location.z+1.8
-            ), 
-            spawn_point.rotation
-        )
-        self.camera = self._world.spawn_actor(camera_bp, camera_transform, attach_to=self.vehicle) 
+        transform = carla.Transform(carla.Location(x=1.6, z=1.7))
+        self.camera = self._world.spawn_actor(camera_bp, transform, attach_to=self.vehicle) 
         self._actors.append(self.camera)
         self.camera.listen(self._handle_camera_data)
+
+    
+    def _attach_camera_to_spectator(self):
+        camera_bp = self._blueprint_library.find('sensor.camera.rgb')
+        camera_bp.set_attribute("image_size_x", f"{self._spectator_cam_w}")
+        camera_bp.set_attribute("image_size_y", f"{self._spectator_cam_h}")
+        camera_bp.set_attribute("fov", "110")
+        transform = carla.Transform(carla.Location(x=-5.5, z=2.8), carla.Rotation(pitch=-15))
+        self.spectator_camera = self._world.spawn_actor(
+            camera_bp, transform, attach_to=self.spectator
+        )
+        self._actors.append(self.spectator_camera)
+        self.spectator_camera.listen(self._handle_spectator_camera_data)
 
 
     def _attach_collision_sensor_to_vehicle(self):
@@ -329,6 +337,13 @@ class CarlaEnv(gym.Env):
         img = img.reshape(self.cam_h, self.cam_w, 4)
         img_rgb = img[..., :-1]
         self.cam_obs = img_rgb / 255
+
+    
+    def _handle_spectator_camera_data(self, data: carla.libcarla.Image):
+        img = np.asarray(data.raw_data)
+        img = img.reshape(self._spectator_cam_h, self._spectator_cam_w, 4)
+        img_rgb = img[..., :-1]
+        self.spectator_cam_obs = img_rgb / 255
 
 
     def _handle_collision_data(self, data: carla.CollisionEvent):
@@ -427,19 +442,21 @@ class CarlaEnv(gym.Env):
         return reward
 
     def render(self):
-        cam_obs = (self.cam_obs * 255).astype(np.uint8)
-        cv2.imshow(self.__class__.__name__, cam_obs)
-        cv2.waitKey(1)
-
-
-    def close_render(self):
-        try:
-            cv2.destroyWindow(self.__class__.__name__)
-        except Exception as e:
-            pass
+        if self.render_mode == "none":
+            return None
+        elif self.render_mode == "rgb_array":
+            return cam_obs
+        elif self.render_mode == "human":
+            cam_obs = (self.cam_obs * 255).astype(np.uint8)
+            spectator_cam_obs = (self.spectator_cam_obs * 255).astype(np.uint8)
+            self.renderer.render(self.vehicle, spectator_cam_obs, cam_obs, self.terminal_reason)
+        else:
+            raise Exception("Invalid render mode, expects one of ('human', 'rgb_array', 'none')")
 
 
     def close(self):
+        if self.render_mode == "human":
+            self.renderer.close()
         settings = self._world.get_settings()
         settings.synchronous_mode = False
         settings.fixed_delta_seconds = None

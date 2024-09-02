@@ -79,6 +79,8 @@ def build_trainer(
 
 def main(config: Dict[str, Any], args: argparse.ArgumentParser):
     logger.info("building CarlaEnv...")
+    if args.render:
+        config["env_config"]["render_mode"] = "human"
     env = build_simulation_env(args.uri, args.port, config)
     try:
         logger.info("building actor critic model(s)...")
@@ -117,6 +119,7 @@ if __name__ == "__main__":
     parser.add_argument("--eval_interval", type=int, default=50, metavar="", help="Number of training episodes before evaluation")
     parser.add_argument("--policy_filename", type=str, default="CarlaAgent.pth.tar", metavar="", help="Filename to store policy weights")
     parser.add_argument("--no_verbose", action="store_true", help="Reduce training output verbosity")
+    parser.add_argument("--render", action="store_true", help="Render Environment")
     args = parser.parse_args()
 
     logging.basicConfig(level=logging.INFO, format=LOG_FORMAT, datefmt=LOG_DATE_FORMAT)
