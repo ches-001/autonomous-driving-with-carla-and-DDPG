@@ -8,6 +8,9 @@ from typing import List, Tuple, Optional
 
 
 class CarlaEnvRender:
+    # I am well aware that Carla PythonAPI offers the HUD class to handle rendering with pygames, but honestly
+    # I felt like this was a good opportunity to get in touch with opencv (cv2) once again, so I wrote a bunch 
+    # of the HUD features I needed for rendering with opencv and its awesome, so yeah...
     def __init__(self, world: carla.World, world_scale: Optional[float]=None):
         world_scale = world_scale or 1.0
         self._world = world
