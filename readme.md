@@ -65,22 +65,20 @@ The image observations and speed measurements of the vehicle do not contain rele
 ### Reward Function Overview
 In this implementation, 4 reward functions were combined to handle speed of vehicle $r_{spd}$, deviation from center of lane $r_{dev}$, collision $r_{col}$ and lane invasion $r_{inv}$
 
-$$r_{spd} = cd_{norm} \cdot \begin{cases}
+$$r_{spd} = \max{(1 - \frac {\begin{cases}{\|x_p - w_{p-{t}}\|} & \text{if } {\|w_{p-{t+1}} - w_{p-{t}}\|} = 0 \\ \\
+\frac {\|((w_{p-{t+1}} - w_{p-{t}}) \times (w_{p-{t}} - x_p))\|} {\|w_{p-{t+1}} - w_{p-{t}}\|} & \text{if } otherwise
+\end{cases}} {\phi_{max}}, \hspace{3mm} 0.0)}\cdot \begin{cases}
 v / v_{min} & \text{if } v < v_{vmin} \\ \\
 1.0 - \frac{(v - v_{target})} {v_{max} - v_{target}} & \text{if } v > v_{target} \\ \\
 1.0 & \text{if } \text{otherwise}
 \end{cases}$$
 
 <br>
-
-$$cd_{norm} = \max{(1 - \frac {CD({w_p}_t, {w_p}_{t+1}, x_p)} {\phi_{max}}, \hspace{3mm} 0.0)}$$
-
-<br>
 <br>
 
 $$r_{dev} = \max{(1 - (\frac {dev(\vec{w_{d}}, \hspace{2mm} \vec{v})} {\theta_{max}}), \hspace{2mm} 0.0)} \cdot \max{(1 - (\frac {D(w_p, \hspace{2mm} x_p)} {d_{max}}), \hspace{2mm} 0.0)}$$
 
-Where: $CD(.,\hspace{1mm}.,\hspace{1mm}.)$, $dev(.,\hspace{1mm}.)$ and $D(.,\hspace{1mm}.)$ calculates the perpendicular distance of a location from a center position given a line running through the center, angle between two vectors and the euclidean distance between two points respectively, $\vec{w_d}$ is the waypoint forward direction vector, $\vec{v}$ is the velocity vector of the vehicle, $\theta_{max}$ is the maximum allowed deviation from waypoint direction, $\phi_{max}$ is the maximum allowed deviation from center of lane, $w_p$ is the waypoint position in 3D space, $x_p$ is the position of vehicle in 3D space, $d_max$ is the max allowed disance between the vehicle and the corresponding waypoint along the route.
+Where: $dev(., .)$ and $D(., .)$ calculates the angle between two vectors and the euclidean distance between two points respectively, $\vec{w_d}$ is the waypoint forward direction vector, $\vec{v}$ is the velocity vector of the vehicle, $\theta_{max}$ is the maximum allowed deviation from waypoint direction, $\phi_{max}$ is the maximum allowed deviation from center of lane, $w_p$ is the waypoint position in 3D space, $x_p$ is the position of vehicle in 3D space, $d_max$ is the max allowed disance between the vehicle and the corresponding waypoint along the route.
 
 $$r_{col} = \begin{cases}
     -5 & \text{if } \text{collision} \\
@@ -113,4 +111,3 @@ Antonio and Koltun, Vladlen and Dosovitskiy, Alexey},
   year={2015},
 }
 ```
-...
