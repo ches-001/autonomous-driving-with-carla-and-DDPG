@@ -40,6 +40,7 @@ During training, for any given episode, we transition the environment state one 
 Note that for the target actor and target critic networks are initialized with the exact weights the actor and critic networks are initialized with respectively. For each parameter update, the target actor and target critic networks are smoothly updated as shown in the expression below:
 
 $${\pi_{\theta}}^{\prime} := (1 - \tau){\pi_{\theta}}^{\prime} + \tau \pi_{\theta}$$
+
 $${Q_{\theta}}^{\prime} := (1 - \tau){Q_{\theta}}^{\prime} + \tau Q_{\theta}$$
 
 Where: $\tau$ is a smoothening factor ranging from 0 to 1.
@@ -66,11 +67,12 @@ In this implementation, 4 reward functions were combined to handle speed of vehi
 
 $$r_{spd} = cd_{norm} \cdot \begin{cases}
 v / v_{min} & \text{if } v < v_{vmin} \\ \\
-1.0 - \frac{(v - v_{target})} {v_{max} - v_{target}_t} & \text{if } v > v_{target} \\ \\
+1.0 - \frac{(v - v_{target})} {v_{max} - v_{target}} & \text{if } v > v_{target} \\ \\
 1.0 & \text{if } \text{otherwise}
 \end{cases}$$
 
 <br>
+
 $$cd_{norm} = \max{(1 - \frac {CD({w_p}_t, {w_p}_{t+1}, x_p)} {\phi_{max}}, \hspace{3mm} 0.0)}$$
 
 <br>
