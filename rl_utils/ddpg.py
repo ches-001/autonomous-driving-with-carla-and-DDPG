@@ -274,6 +274,7 @@ class DDPGTrainer(BaseTrainer):
                 )
                 u = action.squeeze().numpy()
                 next_obs_dict, reward, terminal_state, _ = self.env.step(u)
+                self.env.render()
                 episode_reward += reward
                 all_rewards += self.env.all_rewards
                 next_obs_dict = self.format_obs_dict_fn(next_obs_dict)
