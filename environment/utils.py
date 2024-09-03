@@ -18,25 +18,22 @@ def to_vector(v: Union[carla.Location, carla.Vector3D, carla.Rotation]) -> np.nd
         return np.array([v.pitch, v.yaw, v.roll])
     else:
          raise TypeError(f"unsupported type to vector {type(v)}")
-    
+
 
 def radian_angle_diff(v0: np.ndarray, v1: np.ndarray, threshold: float=2.3) -> float:
-    v0_xy = v0[:2]
-    v1_xy = v1[:2]
-    v0_xy_norm = np.linalg.norm(v0_xy)
-    v1_xy_norm = np.linalg.norm(v1_xy)
-    if v0_xy_norm == 0 or v1_xy_norm == 0:
+    v0 = v0[:2]
+    v1 = v1[:2]
+    v0_norm = np.linalg.norm(v0)
+    v1_norm = np.linalg.norm(v1)
+    if v0_norm == 0 or v1_norm == 0:
         return 0
-    v0_xy_u = v0_xy / v0_xy_norm
-    v1_xy_u = v1_xy / v1_xy_norm
-    dot_product = np.dot(v0_xy_u, v1_xy_u)
-    angle = np.arccos(dot_product)
-    cross_product = np.cross(v0_xy_u, v1_xy_u)
-    if cross_product < 0:
+    dot = np.dot(v0, v1) / (v0_norm * v1_norm)
+    cross = np.cross(v0, v1) / (v0_norm * v1_norm)
+    angle = np.arccos(dot)
+    if cross < 0:
         angle = -angle
-    # threshold (2.3 rad) is a big angle and would heavily penalize the RL agent
-    # hence angles beyond this are filtered
-    if abs(angle) >= threshold: return 0
+    if abs(angle) > threshold: 
+        return 0.0
     return angle
 
 

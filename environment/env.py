@@ -410,14 +410,15 @@ class CarlaEnv(gym.Env):
         vvelocity = self.vehicle.get_velocity()
         distance_from_wp = wlocation.distance(vlocation)
         deviation_angle = radian_angle_diff(to_vector(wdirection), to_vector(vvelocity))
+        deviation_angle = abs(np.rad2deg(deviation_angle))
         
-        if np.rad2deg(deviation_angle) > self.max_center_angle_deviation:
+        if deviation_angle > self.max_center_angle_deviation:
             if self.terminal_on_max_angle_deviation and self.num_timesteps > self._terminal_allowance_steps:
                 self.terminal_reason = "over-deviation of vehicle angle from waypoint"
                 self.terminal_state = True
 
         distance_factor = max(1.0 - (distance_from_wp / self.max_distance_from_waypoint), 0.0)
-        angle_factor = max(1.0 - abs(np.rad2deg(deviation_angle) / self.max_center_angle_deviation), 0.0)
+        angle_factor = max(1.0 - deviation_angle / self.max_center_angle_deviation, 0.0)
         reward = distance_factor * angle_factor
         return reward
 
