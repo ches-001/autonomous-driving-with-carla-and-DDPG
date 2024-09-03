@@ -247,7 +247,7 @@ class CarlaEnv(gym.Env):
         next_waypoint, next_maneuver = self.route_waypoints[(self.waypoint_idx + 1) % route_length]
 
         velocity = to_vector(self.vehicle.get_velocity())
-        measurements = np.asarray([(velocity**2).sum()])
+        measurements = np.asarray([np.sqrt((velocity**2).sum())])
         obs = {
             "cam_obs": self.cam_obs,
             "measurements": measurements / 100, # m/s speed scaled by 100
@@ -374,7 +374,7 @@ class CarlaEnv(gym.Env):
         vvelocity = self.vehicle.get_velocity()
         target_speed = self.vehicle.get_speed_limit() or self.target_speed
         # speed reward will be linearly interpolated between 0 and 1
-        speed = 3.6 * (to_vector(vvelocity)**2).sum()
+        speed = 3.6 * np.sqrt((to_vector(vvelocity)**2).sum())
         if speed < self.min_speed:
             reward = speed / self.min_speed
         elif speed > target_speed:
