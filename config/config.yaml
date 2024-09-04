@@ -52,9 +52,9 @@ spawn_npc_config:
   
 trainer_config:
   action_noise_std: 0.1
-  replay_buffer_size: 5_000
+  replay_buffer_size: 10_000
   clip_grads: True
   tau: 1.0e-3
   gamma: 0.99
   device: cuda
-  buffer_device: "cpu"
+  buffer_device: cuda
