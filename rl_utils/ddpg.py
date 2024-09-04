@@ -32,7 +32,8 @@ class DDPGTrainer(BaseTrainer):
                 clip_grads: bool=True,
                 tau: float=1e-3,
                 gamma: float=0.99, 
-                device: str="cpu"
+                device: str="cpu",
+                buffer_device: str="cpu"
             ):
         
         assert (actor and critic) or actor_critic
@@ -47,7 +48,9 @@ class DDPGTrainer(BaseTrainer):
         self.target_actor = copy.deepcopy(self.actor)
         self.target_critic = copy.deepcopy(self.critic)
         self.target_actor_critic = copy.deepcopy(self.actor_critic)
-        self._agent_buffer = ExperienceReplayMemory(env, memory_capacity=replay_buffer_size)
+        self._agent_buffer = ExperienceReplayMemory(
+            env, memory_capacity=replay_buffer_size, buffer_device=buffer_device
+        )
         self.clip_grads = clip_grads
         self.tau = tau
         self.gamma = gamma

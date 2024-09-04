@@ -4,10 +4,11 @@ from typing import Dict, Sequence, Union, Optional
 
 
 class RingTensorBuffer:
-    def __init__(self, maxlen: int, env: CarlaEnv):
+    def __init__(self, maxlen: int, env: CarlaEnv, device: str="cpu"):
         self.maxlen = maxlen
         self.start = 0
         self.length = 0
+        self.device = device
         cam_obs_dim_t = env.observation_space["cam_obs"].shape
         # cam_obs has shape of (H, W, C), we need it to be (C, H, W)
         cam_obs_dim_t = (cam_obs_dim_t[2], cam_obs_dim_t[0], cam_obs_dim_t[1])
@@ -15,15 +16,15 @@ class RingTensorBuffer:
         intention_dim = 1
         action_dim = env.action_space.shape[0]
         
-        self.__cam_obs_buffer = torch.zeros((self.maxlen, *cam_obs_dim_t), dtype=torch.float32, device="cpu")
-        self.__measurements_buffer = torch.zeros((self.maxlen, measurements_dim), dtype=torch.float32, device="cpu")
-        self.__intentions_buffer = torch.zeros((self.maxlen, intention_dim), dtype=torch.int64, device="cpu")
-        self.__actions_buffer = torch.zeros((self.maxlen, action_dim), dtype=torch.float32, device="cpu")
-        self.__rewards_buffer = torch.zeros((self.maxlen, 1), dtype=torch.float32, device="cpu")
-        self.__future_cam_obs_buffer = torch.zeros((self.maxlen, *cam_obs_dim_t), dtype=torch.float32, device="cpu")
-        self.__future_measurements_buffer = torch.zeros((self.maxlen, measurements_dim), dtype=torch.float32, device="cpu")
-        self.__future_intentions_buffer = torch.zeros((self.maxlen, intention_dim), dtype=torch.int64, device="cpu")
-        self.__terminal_states_buffer = torch.zeros((self.maxlen, 1), dtype=torch.bool, device="cpu")
+        self.__cam_obs_buffer = torch.zeros((self.maxlen, *cam_obs_dim_t), dtype=torch.float32, device=device)
+        self.__measurements_buffer = torch.zeros((self.maxlen, measurements_dim), dtype=torch.float32, device=device)
+        self.__intentions_buffer = torch.zeros((self.maxlen, intention_dim), dtype=torch.int64, device=device)
+        self.__actions_buffer = torch.zeros((self.maxlen, action_dim), dtype=torch.float32, device=device)
+        self.__rewards_buffer = torch.zeros((self.maxlen, 1), dtype=torch.float32, device=device)
+        self.__future_cam_obs_buffer = torch.zeros((self.maxlen, *cam_obs_dim_t), dtype=torch.float32, device=device)
+        self.__future_measurements_buffer = torch.zeros((self.maxlen, measurements_dim), dtype=torch.float32, device=device)
+        self.__future_intentions_buffer = torch.zeros((self.maxlen, intention_dim), dtype=torch.int64, device=device)
+        self.__terminal_states_buffer = torch.zeros((self.maxlen, 1), dtype=torch.bool, device=device)
 
     def __len__(self) -> int:
         return self.length
@@ -73,15 +74,15 @@ class RingTensorBuffer:
         else:
             # This should not happen
             raise RuntimeError()
-        self.__cam_obs_buffer[(self.start + self.length - 1) % self.maxlen] = item["cam_obs"]
-        self.__measurements_buffer[(self.start + self.length - 1) % self.maxlen] = item["measurements"]
-        self.__intentions_buffer[(self.start + self.length - 1) % self.maxlen] = item["intention"]
-        self.__actions_buffer[(self.start + self.length - 1) % self.maxlen] = item["action"]
-        self.__rewards_buffer[(self.start + self.length - 1) % self.maxlen] = item["reward"]
-        self.__future_cam_obs_buffer[(self.start + self.length - 1) % self.maxlen] = item["future_cam_obs"]
-        self.__future_measurements_buffer[(self.start + self.length - 1) % self.maxlen] = item["future_measurements"]
-        self.__future_intentions_buffer[(self.start + self.length - 1) % self.maxlen] = item["future_intention"]
-        self.__terminal_states_buffer[(self.start + self.length - 1) % self.maxlen] = item["terminal_state"]
+        self.__cam_obs_buffer[(self.start + self.length - 1) % self.maxlen] = item["cam_obs"].to(self.device)
+        self.__measurements_buffer[(self.start + self.length - 1) % self.maxlen] = item["measurements"].to(self.device)
+        self.__intentions_buffer[(self.start + self.length - 1) % self.maxlen] = item["intention"].to(self.device)
+        self.__actions_buffer[(self.start + self.length - 1) % self.maxlen] = item["action"].to(self.device)
+        self.__rewards_buffer[(self.start + self.length - 1) % self.maxlen] = item["reward"].to(self.device)
+        self.__future_cam_obs_buffer[(self.start + self.length - 1) % self.maxlen] = item["future_cam_obs"].to(self.device)
+        self.__future_measurements_buffer[(self.start + self.length - 1) % self.maxlen] = item["future_measurements"].to(self.device)
+        self.__future_intentions_buffer[(self.start + self.length - 1) % self.maxlen] = item["future_intention"].to(self.device)
+        self.__terminal_states_buffer[(self.start + self.length - 1) % self.maxlen] = item["terminal_state"].to(self.device)
 
     def extend(self, items: Sequence[Dict[str, torch.Tensor]]):
         for item in items: 
@@ -89,10 +90,10 @@ class RingTensorBuffer:
 
 
 class ExperienceReplayMemory:
-    def __init__(self, env: CarlaEnv, memory_capacity: int=10_000):
+    def __init__(self, env: CarlaEnv, memory_capacity: int=10_000, buffer_device: str="cpu"):
         self.env = env
         self.memory_capacity = memory_capacity
-        self._memory = RingTensorBuffer(maxlen=memory_capacity, env=env)
+        self._memory = RingTensorBuffer(maxlen=memory_capacity, env=env, device=buffer_device)
 
     def __len__(self) -> int:
         return len(self._memory)
