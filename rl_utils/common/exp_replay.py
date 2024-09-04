@@ -15,15 +15,15 @@ class RingTensorBuffer:
         intention_dim = 1
         action_dim = env.action_space.shape[0]
         
-        self.__cam_obs_buffer = torch.zeros((self.maxlen, *cam_obs_dim_t), dtype=torch.float32)
-        self.__measurements_buffer = torch.zeros((self.maxlen, measurements_dim), dtype=torch.float32)
-        self.__intentions_buffer = torch.zeros((self.maxlen, intention_dim), dtype=torch.int64)
-        self.__actions_buffer = torch.zeros((self.maxlen, action_dim), dtype=torch.float32)
-        self.__rewards_buffer = torch.zeros((self.maxlen, 1), dtype=torch.float32)
-        self.__future_cam_obs_buffer = torch.zeros((self.maxlen, *cam_obs_dim_t), dtype=torch.float32)
-        self.__future_measurements_buffer = torch.zeros((self.maxlen, measurements_dim), dtype=torch.float32)
-        self.__future_intentions_buffer = torch.zeros((self.maxlen, intention_dim), dtype=torch.int64)
-        self.__terminal_states_buffer = torch.zeros((self.maxlen, 1), dtype=torch.bool)
+        self.__cam_obs_buffer = torch.zeros((self.maxlen, *cam_obs_dim_t), dtype=torch.float32, device="cpu")
+        self.__measurements_buffer = torch.zeros((self.maxlen, measurements_dim), dtype=torch.float32, device="cpu")
+        self.__intentions_buffer = torch.zeros((self.maxlen, intention_dim), dtype=torch.int64, device="cpu")
+        self.__actions_buffer = torch.zeros((self.maxlen, action_dim), dtype=torch.float32, device="cpu")
+        self.__rewards_buffer = torch.zeros((self.maxlen, 1), dtype=torch.float32, device="cpu")
+        self.__future_cam_obs_buffer = torch.zeros((self.maxlen, *cam_obs_dim_t), dtype=torch.float32, device="cpu")
+        self.__future_measurements_buffer = torch.zeros((self.maxlen, measurements_dim), dtype=torch.float32, device="cpu")
+        self.__future_intentions_buffer = torch.zeros((self.maxlen, intention_dim), dtype=torch.int64, device="cpu")
+        self.__terminal_states_buffer = torch.zeros((self.maxlen, 1), dtype=torch.bool, device="cpu")
 
     def __len__(self) -> int:
         return self.length
@@ -49,6 +49,21 @@ class RingTensorBuffer:
             "terminal_states": self.__terminal_states_buffer[idx],
         }
         return item
+    
+    def memory_gigabytes(self) -> float:
+        numel = (
+            (self.__cam_obs_buffer.numel() * self.__cam_obs_buffer.element_size()) +
+            (self.__measurements_buffer.numel() * self.__measurements_buffer.element_size()) +
+            (self.__intentions_buffer.numel() * self.__intentions_buffer.element_size()) +
+            (self.__actions_buffer.numel() * self.__actions_buffer.element_size()) +
+            (self.__rewards_buffer.numel()  * self.__rewards_buffer.element_size()) +
+            (self.__future_cam_obs_buffer.numel() * self.__future_cam_obs_buffer.element_size()) +
+            (self.__future_measurements_buffer.numel()  * self.__future_measurements_buffer.element_size()) +
+            (self.__future_intentions_buffer.numel() * self.__future_intentions_buffer.element_size())+
+            (self.__terminal_states_buffer.numel() * self.__terminal_states_buffer.element_size())
+        )
+        mem_size = numel / 1e9
+        return mem_size
     
     def append(self, item: Dict[str, torch.Tensor]):
         if self.length < self.maxlen:

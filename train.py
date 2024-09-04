@@ -82,12 +82,15 @@ def main(config: Dict[str, Any], args: argparse.ArgumentParser):
     if args.render:
         config["env_config"]["render_mode"] = "human"
     env = build_simulation_env(args.uri, args.port, config)
+    env.set_timeout(10)
     try:
         logger.info("building actor critic model(s)...")
         actor_critic = build_actor_critic(env, args.share_modules, config)
 
         logger.info("building RL trainer...")
         trainer = build_trainer(env, config, actor_critic)
+
+        logger.info(f"Trainer buffer memory: {trainer._agent_buffer._memory.memory_gigabytes() :.4f} GB")
 
         logger.info("commencing training...")
         train_performance, eval_performance = trainer.train(
