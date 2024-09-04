@@ -453,6 +453,7 @@ class CarlaEnv(gym.Env):
         self.collision_reward, self.lane_invasion_reward = 0, 0
         return reward
 
+
     def render(self):
         if self.render_mode == "none":
             return None
