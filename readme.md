@@ -10,7 +10,7 @@
 ## Explaination
 The carla simulation software is used in this repository to develop an Markov Decision Process (MDP)-like environment to train a reinforcement learning algorithm. After initializing the environment, for every timestep the environment step function returns an observation dictionary, a reward value, the terminal status of the environment and other information pertaining to that timestep, like velocity vector, waypoint position, vehicle position, etc
 
-the observation dictionary contains the camera observation (as image frames) $I_t$, the speed of the vehicle $v_t$ in m/s scaled by 100 and the route option / intention $R_t$ for nagivating the waypoint.
+the observation dictionary contains the camera observation (as image frames) $I_t$, the speed of the vehicle $v_t$ in km/hr scaled by 100 and the route option / intention $R_t$ for nagivating the waypoint.
 
 In this implementation, a neural network based agent is trained with the Deep Deterministic Policy Gradient (DDPG) algorithm, an off-policy training algorithm suitable for multi-dimensional continuous action spaces, the choice of DDPG was influenced by the complexity of the problem, as it is not only suitable for continuous action spaces, but also has a good sample efficiency compared to on-policy techniques like PPO, A2C, A3C and its variants.
 

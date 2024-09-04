@@ -26,7 +26,7 @@ env_config:
   cam_w: 320
   cam_h: 240
   fov: 110
-  fps: 30
+  fps: 15
   filterv: model3
   action_eps: 0.05
   max_travel_distance: 2500

@@ -64,7 +64,7 @@ class CarlaEnv(gym.Env):
         self.min_speed = min_speed # km/hr
         self.max_speed = max_speed # km/hr
         self.target_speed = target_speed # km/hr
-        self.max_center_deviation = max_center_deviation # m/s
+        self.max_center_deviation = max_center_deviation # m
         self.max_center_angle_deviation = max_center_angle_deviation # degrees
         self.terminal_on_collision = terminal_on_collision
         self.terminal_on_lane_invasion = terminal_on_lane_invasion
@@ -112,6 +112,7 @@ class CarlaEnv(gym.Env):
 
 
     def reset(self) -> Tuple[Dict[str, np.ndarray], Dict[str, np.ndarray]]:
+        self.in_simulation_time = 0
         self.terminal_state = False
         self.num_timesteps = 0
         self.waypoint_idx = 0
@@ -172,7 +173,7 @@ class CarlaEnv(gym.Env):
         self._world.tick()
 
         # necessary incase camera sensor / obs has not yet been registered
-        while not hasattr(self, "cam_obs") and (not hasattr(self, "spectator_cam_obs")):
+        while (not hasattr(self, "cam_obs")) or (not hasattr(self, "spectator_cam_obs")):
             time.sleep(0.05)
 
         # init other values
@@ -201,17 +202,16 @@ class CarlaEnv(gym.Env):
             self.prev_cam_obs = self.cam_obs
 
             # clip and smoothen action with previous action if available
-            if not hasattr(self, "prev_action") or self.prev_action is None:
-                steer, throttle = action
-            else:
-                steer, throttle = smoothen_action(self.prev_action, action, smooth_factor=self.action_eps)
+            steer, throttle = action
+            prev_control = self.vehicle.get_control()
+            steer = smoothen_action(prev_control.steer, steer, smooth_factor=self.action_eps)
+            throttle = smoothen_action(prev_control.throttle, throttle, smooth_factor=self.action_eps)
             # move vehicle with action
             # throttle values range from 0 to 1, while steer, from -1 to 1
             control = carla.VehicleControl(brake=0.0, steer=float(steer), throttle=float(throttle))
             self.vehicle.apply_control(control)
 
-            # store prev action and update number of timesteps made with action
-            self.prev_action = action
+            # update number of timesteps made with action
             self.num_timesteps += 1
 
         self.set_spectator_transform()
@@ -247,10 +247,16 @@ class CarlaEnv(gym.Env):
         next_waypoint, next_maneuver = self.route_waypoints[(self.waypoint_idx + 1) % route_length]
 
         velocity = to_vector(self.vehicle.get_velocity())
-        measurements = np.asarray([np.sqrt((velocity**2).sum())])
+        speed = 3.6 * np.sqrt((velocity**2).sum())
+
+        # make state terminal if vehicle has been immobile for the first 5secs of episode
+        if speed < 1.0 and self.waypoint_idx >= 0 and self.in_simulation_time > 5:
+            self.terminal_state = True
+            self.terminal_reason = "vehicle has stopped"
+
         obs = {
             "cam_obs": self.cam_obs,
-            "measurements": measurements / 100, # m/s speed scaled by 100
+            "measurements": np.asarray([speed, ]) / 100, # km/hr speed scaled by 100
             "intention": CarlaEnv.label_encode_maneuver(next_maneuver),
         }
         info = {
@@ -278,6 +284,8 @@ class CarlaEnv(gym.Env):
             )
             self.terminal_state = True
 
+        # update the insimulation time (not the actual simulation time observed by the client)
+        self.in_simulation_time += (1 / self.fps)
         return obs, reward, self.terminal_state, info
 
 
@@ -287,6 +295,9 @@ class CarlaEnv(gym.Env):
 
     def _make_world_synchronous(self):
         settings = self._world.get_settings()
+        # a thing to note is that the FPS parameter does not determine the actual FPS of the simulation, rather
+        # is an 'in-simulation' parameter, used to ensure that the time between each timestep is recorded as the
+        # inverse of the FPS, rather than the actual time spent
         settings.fixed_delta_seconds = 1 / self.fps
         settings.synchronous_mode = True
         self._world.apply_settings(settings)
