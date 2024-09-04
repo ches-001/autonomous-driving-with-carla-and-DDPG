@@ -227,15 +227,15 @@ class CarlaEnv(gym.Env):
         self.prev_waypoint_idx = self.waypoint_idx
         for _ in range(route_length):
             wp, _ = self.route_waypoints[(self.waypoint_idx + 1) % route_length]
-            wp_direction = to_vector(wp.transform.get_forward_vector())
-            vehicle_relative_direction = to_vector(vtransform.location - wp.transform.location)
-            direction_dot_prod = np.dot(wp_direction[:2], vehicle_relative_direction[:2])
             # check if we have passed the waypoint (wp)
             # dot product measures the amount at which two vectors are heading to same direction
             # here we compute the relative direction of the waypoint to the vehicle, next we compute
             # the dot product of that direction to the forward direction of the waypoint, if the vehicle
             # has passed the waypoint, the dot product will be positive non-zero value, else
             # it will be negative
+            wp_direction = to_vector(wp.transform.get_forward_vector())
+            vehicle_relative_direction = to_vector(vtransform.location - wp.transform.location)
+            direction_dot_prod = np.dot(wp_direction[:2], vehicle_relative_direction[:2])
             if direction_dot_prod > 0:
                 self.waypoint_idx += 1
             else: break
