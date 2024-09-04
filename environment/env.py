@@ -29,8 +29,8 @@ class CarlaEnv(gym.Env):
     def __init__(
             self,
             client: carla.Client,
-            cam_w: int=640, 
-            cam_h: int=480, 
+            cam_w: int=224, 
+            cam_h: int=224,
             fov: int=110,
             fps: int=15,
             filterv: str="model3",
