@@ -505,4 +505,5 @@ class CarlaEnv(gym.Env):
     @classmethod
     def make_env_with_client(cls, uri: str, port: int, **kwargs) -> "CarlaEnv":
         client = carla.Client(uri, port)
+        client.set_timeout(10)
         return cls(client, **kwargs)
