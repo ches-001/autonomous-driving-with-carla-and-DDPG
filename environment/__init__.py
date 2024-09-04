@@ -9,7 +9,6 @@ try:
         sys.version_info.major,
         sys.version_info.minor,
         "win-amd64" if os.name == "nt" else "linux-x86_64")))[0]
-    
     sys.path.append(path)
 except IndexError:
     pass

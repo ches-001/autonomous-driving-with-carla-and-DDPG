@@ -3,7 +3,9 @@
 ## Setup
 1. Clone the repository: `git clone https://github.com/ches-001/autonomous-driving-with-carla-and-DDPG`
 
-2. Download the [Carla simulation software](https://tiny.carla.org/carla-0-9-8-linux) in the directory of the cloned repository
+2. Download the Carla simulation software, ([linux: 0.9.8](https://tiny.carla.org/carla-0-9-8-linux) or [linux: 0.9.13](https://tiny.carla.org/carla-0-9-13-linux) for linux and [win: 0.9.8](https://tiny.carla.org/carla-0-9-8-windows) or [win: 0.9.13](https://tiny.carla.org/carla-0-9-13-windows) for windows have been tested with this repository) in the directory of the cloned repository
+
+4. Carla v0.9.8 requires python 3.7, however if you are using a GPU with updated CUDA drivers upto CUDA-11, CUDA-12 and above, you will need to download v0.9.13 that supports python 3.8, with this you can simply install the carla client API package via `pip install carla==0.9.13` instead of adding the built egg module in `CARLA_0.9.13/WindowsNoEditor/PythonAPI/carla/dist/` folder (for windows) or `CARLA_0.9.13/PythonAPI/carla/dist/` folder (for linux) to system path via `sys.path.append(...)`. Ofcourse you will need to do this if you are using v0.9.8 since `carla==0.9.8` cannot be installed via pip for some strange reasons. To add the built egg module to system path, comment the entire try and except block in the `environment/__init__.py` file and add `sys.path.append('<path_to_egg_module>')`
 
 3. run train.py to train the RL agent on default configurations (run with the `-h` flag to view the arguments)
 
