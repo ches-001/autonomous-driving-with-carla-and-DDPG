@@ -48,10 +48,8 @@ class BaseTrainer:
         # I am well aware that this is a diabolical one liner, but...allow.
         obs_dict: Dict[str, torch.Tensor] = {
             k:(
-                torch.from_numpy(v).unsqueeze(0).to(
-                    device=self.device,
-                    dtype=torch.float32
-                ) if isinstance(v, np.ndarray) else torch.tensor(
+                torch.from_numpy(v).unsqueeze(0).to(device=self.device)
+                  if isinstance(v, np.ndarray) else torch.tensor(
                     [[v]], dtype=torch.int64, device=self.device
                 )
             )  for k, v in obs_dict.items()

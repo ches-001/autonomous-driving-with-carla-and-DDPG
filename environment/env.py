@@ -256,7 +256,7 @@ class CarlaEnv(gym.Env):
 
         obs = {
             "cam_obs": self.cam_obs,
-            "measurements": np.asarray([speed, ]) / 100, # km/hr speed scaled by 100
+            "measurements": np.asarray([speed, ], dtype=np.float32) / 100, # km/hr speed scaled by 100
             "intention": CarlaEnv.label_encode_maneuver(next_maneuver),
         }
         info = {
@@ -346,15 +346,13 @@ class CarlaEnv(gym.Env):
     def _handle_camera_data(self, data: carla.libcarla.Image):
         img = np.asarray(data.raw_data)
         img = img.reshape(self.cam_h, self.cam_w, 4)
-        img_rgb = img[..., :-1]
-        self.cam_obs = img_rgb / 255
-
+        self.cam_obs = img[..., :-1]
+        
     
     def _handle_spectator_camera_data(self, data: carla.libcarla.Image):
         img = np.asarray(data.raw_data)
         img = img.reshape(self._spectator_cam_h, self._spectator_cam_w, 4)
-        img_rgb = img[..., :-1]
-        self.spectator_cam_obs = img_rgb / 255
+        self.spectator_cam_obs = img[..., :-1]
 
 
     def _handle_collision_data(self, data: carla.CollisionEvent):
@@ -458,11 +456,9 @@ class CarlaEnv(gym.Env):
         if self.render_mode == "none":
             return None
         elif self.render_mode == "rgb_array":
-            return cam_obs
+            return self.cam_obs
         elif self.render_mode == "human":
-            cam_obs = (self.cam_obs * 255).astype(np.uint8)
-            spectator_cam_obs = (self.spectator_cam_obs * 255).astype(np.uint8)
-            self.renderer.render(self.vehicle, spectator_cam_obs, cam_obs, self.terminal_reason)
+            self.renderer.render(self.vehicle, self.spectator_cam_obs, self.cam_obs , self.terminal_reason)
         else:
             raise Exception("Invalid render mode, expects one of ('human', 'rgb_array', 'none')")
 

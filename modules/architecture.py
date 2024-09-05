@@ -30,6 +30,9 @@ class ImageEncoder(ResNet):
         del self.maxpool, self.fc
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
+        assert x.dtype in [torch.uint8, torch.float32]
+        if x.dtype == torch.uint8:
+            x = (x / 255).to(dtype=torch.float32, device=x.device)
         output = self.conv1(x)
         output = self.conv2(output)
         output = self.bn1(output)

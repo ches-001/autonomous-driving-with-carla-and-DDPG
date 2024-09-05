@@ -16,12 +16,12 @@ class RingTensorBuffer:
         intention_dim = 1
         action_dim = env.action_space.shape[0]
         
-        self.__cam_obs_buffer = torch.zeros((self.maxlen, *cam_obs_dim_t), dtype=torch.float32, device=device)
+        self.__cam_obs_buffer = torch.zeros((self.maxlen, *cam_obs_dim_t), dtype=torch.uint8, device=device)
         self.__measurements_buffer = torch.zeros((self.maxlen, measurements_dim), dtype=torch.float32, device=device)
         self.__intentions_buffer = torch.zeros((self.maxlen, intention_dim), dtype=torch.int64, device=device)
         self.__actions_buffer = torch.zeros((self.maxlen, action_dim), dtype=torch.float32, device=device)
         self.__rewards_buffer = torch.zeros((self.maxlen, 1), dtype=torch.float32, device=device)
-        self.__future_cam_obs_buffer = torch.zeros((self.maxlen, *cam_obs_dim_t), dtype=torch.float32, device=device)
+        self.__future_cam_obs_buffer = torch.zeros((self.maxlen, *cam_obs_dim_t), dtype=torch.uint8, device=device)
         self.__future_measurements_buffer = torch.zeros((self.maxlen, measurements_dim), dtype=torch.float32, device=device)
         self.__future_intentions_buffer = torch.zeros((self.maxlen, intention_dim), dtype=torch.int64, device=device)
         self.__terminal_states_buffer = torch.zeros((self.maxlen, 1), dtype=torch.bool, device=device)
@@ -100,12 +100,12 @@ class ExperienceReplayMemory:
 
     def updateMemory(
             self, 
-            cam_obs: torch.FloatTensor,
+            cam_obs: torch.ByteTensor,
             measurements: torch.FloatTensor,
             intention: torch.LongTensor,
             action: torch.FloatTensor, 
             reward: float, 
-            future_cam_obs: torch.FloatTensor,
+            future_cam_obs: torch.ByteTensor,
             future_measurements: torch.FloatTensor,
             future_intention: torch.LongTensor,
             terminal_state: bool
