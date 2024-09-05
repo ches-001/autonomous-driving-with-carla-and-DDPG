@@ -65,8 +65,8 @@ class DDPGTrainer(BaseTrainer):
             self.action_noise_fn = OrnsteinUhlenbeckNoise(**action_noise_config)
 
         elif self.action_noise == "normal":
-            mu = torch.zeros(self.env.action_space[0], dtype=torch.float32, device=self.device)
-            std = torch.zeros(self.env.action_space[0], dtype=torch.float32, device=self.device).fill_(0.5)
+            mu = torch.zeros(self.env.action_space.shape[0], dtype=torch.float32, device=self.device)
+            std = torch.zeros(self.env.action_space.shape[0], dtype=torch.float32, device=self.device).fill_(0.5)
             self.action_noise_fn = lambda t, t_max : (1.0 - (t / t_max)) * torch.normal(mu, std)
 
         else:
