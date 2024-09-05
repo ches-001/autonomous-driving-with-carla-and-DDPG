@@ -268,16 +268,16 @@ class DDPGTrainer(BaseTrainer):
         close_env: bool=False) -> Tuple[Dict[str, Iterable], Dict[str, Iterable]]:
         
         _template = {
-            "reward": [], 
-            "speed_reward": [], 
-            "deviation_reward": [], 
-            "collision_reward": [], 
-            "invasion_reward": [],
+            "avg_reward": [], 
+            "avg_speed_reward": [], 
+            "avg_deviation_reward": [], 
+            "avg_collision_reward": [], 
+            "avg_invasion_reward": [],
         }
         train_performance = copy.deepcopy(_template)
         eval_performance = copy.deepcopy(_template)
         eval_performance["better_than_prior"] = []
-        best_reward_step_ratio = -np.inf
+        best_avg_reward = -np.inf
         current_episode = 0
         current_step = 0
         best_eval_episode = 0
@@ -322,49 +322,52 @@ class DDPGTrainer(BaseTrainer):
                     self.updateActorAndCritic(batch_size)
                 obs_dict = next_obs_dict.copy()
 
+                current_step += 1
+                episode_step += 1
                 if verbose:
                     steer, throttle = u
                     elapsed_time = str(timedelta(seconds=(time.time() - start_time)))
                     _print_msg = (
                         f"episode: {current_episode}| current_step: {current_step}| episode_step: {episode_step}| "
-                        f"elapsed_time: {elapsed_time}| accum_reward: {episode_reward :.3f}| steer(w noise): {steer :.3f}| "
-                        f"throttle (w noise): {throttle :.3f}"
+                        f"elapsed_time: {elapsed_time}| avg_reward: {episode_reward/episode_step :.3f}| "
+                        f"steer(w noise): {steer :.3f}| throttle (w noise): {throttle :.3f}"
                     )
                     if terminal_state:
                         _print_msg + f" terminal msg: {self.env.terminal_reason}"
                     print(_print_msg, end="\r")
-                current_step += 1
-                episode_step += 1
-            
-            train_performance["reward"].append(episode_reward)
-            train_performance["speed_reward"].append(all_rewards[0])
-            train_performance["deviation_reward"].append(all_rewards[1])
-            train_performance["collision_reward"].append(all_rewards[2])
-            train_performance["invasion_reward"].append(all_rewards[3])
+
+            all_avg_rewards = all_rewards / episode_step
+            train_performance["avg_reward"].append(episode_reward)
+            train_performance["avg_speed_reward"].append(all_avg_rewards[0])
+            train_performance["avg_deviation_reward"].append(all_avg_rewards[1])
+            train_performance["avg_collision_reward"].append(all_avg_rewards[2])
+            train_performance["avg_invasion_reward"].append(all_avg_rewards[3])
 
             if current_episode % eval_interval==0:
                 eval_reward, all_eval_rewards, eval_steps = self.evaluate()
-                eval_reward_step_ratio = eval_reward / eval_steps
+                eval_avg_reward = eval_reward / eval_steps
                 better_than_prior = False
-                if eval_reward_step_ratio > best_reward_step_ratio:
+                if eval_avg_reward > best_avg_reward:
                     best_eval_episode = current_episode
-                    best_reward_step_ratio = eval_reward_step_ratio
+                    best_avg_reward = eval_avg_reward
                     better_than_prior = True
                     self.savePolicyParams(policy_weights_filename)
 
                 if verbose:
                     _print_msg = (
-                        f"best eval reward: {eval_reward :.3f} and steps: {eval_steps} @ episode {best_eval_episode}| "
+                        f"eval avg reward {eval_avg_reward: .3f}| best avg reward: {best_avg_reward :.3f}"
+                        f" @ episode {best_eval_episode}| "
                     )
                     if better_than_prior:
                         _print_msg += f"best model saved :)"
                     print("\n", _print_msg)
 
-                eval_performance["reward"].append(eval_reward)
-                eval_performance["speed_reward"].append(all_eval_rewards[0])
-                eval_performance["deviation_reward"].append(all_eval_rewards[1])
-                eval_performance["collision_reward"].append(all_eval_rewards[2])
-                eval_performance["invasion_reward"].append(all_eval_rewards[3])
+                all_eval_avg_rewards = all_eval_rewards / eval_steps
+                eval_performance["avg_reward"].append(eval_avg_reward)
+                eval_performance["avg_speed_reward"].append(all_eval_avg_rewards[0])
+                eval_performance["avg_deviation_reward"].append(all_eval_avg_rewards[1])
+                eval_performance["avg_collision_reward"].append(all_eval_avg_rewards[2])
+                eval_performance["avg_invasion_reward"].append(all_eval_avg_rewards[3])
                 eval_performance["better_than_prior"].append(better_than_prior)
 
             current_episode += 1
