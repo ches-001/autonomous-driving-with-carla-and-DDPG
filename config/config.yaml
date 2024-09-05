@@ -14,12 +14,12 @@ model_config:
 optim_config:
   actor:
     optim_name: Adam
-    lr: 1.0e-3
+    lr: 1.0e-4
     weight_decay: 0.0
 
   critic:
     optim_name: Adam
-    lr: 1.0e-3
+    lr: 1.0e-4
     weight_decay: 0.0
   
 env_config:
@@ -44,14 +44,14 @@ env_config:
   render_scale: 1.0
 
 spawn_npc_config:
-  num_vehicles: 10
+  num_vehicles: 50
   num_walkers: 50
   safe: True
   filterv: vehicle.*
   filterw: walker.pedestrian.*
   
 trainer_config:
-  replay_buffer_size: 10_000
+  replay_buffer_size: 20_000
   clip_grads: True
   tau: 1.0e-3
   gamma: 0.99
