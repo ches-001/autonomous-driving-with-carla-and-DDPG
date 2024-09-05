@@ -115,11 +115,11 @@ class ExperienceReplayMemory:
         item["measurements"] = measurements
         item["intention"] = intention
         item["action"] = action
-        item["reward"] = reward
+        item["reward"] = torch.tensor(reward)
         item["future_cam_obs"] = future_cam_obs
         item["future_measurements"] = future_measurements
         item["future_intention"] = future_intention
-        item["terminal_state"] = terminal_state
+        item["terminal_state"] = torch.tensor(terminal_state)
         self._memory.append(item)
 
     def sampleRandomBatch(self, n_samples: int, device: str="cpu")->Optional[Dict[str, torch.Tensor]]:
