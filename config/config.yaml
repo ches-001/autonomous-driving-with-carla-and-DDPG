@@ -37,10 +37,10 @@ env_config:
   max_distance_from_waypoint: 3.0
   max_center_angle_deviation: 90
   terminal_on_collision: True
-  terminal_on_lane_invasion: True
+  terminal_on_lane_invasion: False
   terminal_on_max_speed: True
   terminal_on_max_angle_deviation: False
-  terminal_on_max_center_deviation: True
+  terminal_on_max_center_deviation: False
   render_scale: 1.0
 
 spawn_npc_config:
