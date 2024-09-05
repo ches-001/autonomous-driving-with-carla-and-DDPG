@@ -254,7 +254,7 @@ class DDPGTrainer(BaseTrainer):
         train_performance = copy.deepcopy(_template)
         eval_performance = copy.deepcopy(_template)
         eval_performance["better_than_prior"] = []
-        best_reward = -np.inf
+        best_reward_step_ratio = -np.inf
         current_episode = 0
         current_step = 0
         best_eval_episode = 0
@@ -318,18 +318,18 @@ class DDPGTrainer(BaseTrainer):
             train_performance["invasion_reward"].append(all_rewards[3])
 
             if current_episode % eval_interval==0:
-                eval_reward, all_eval_rewards = self.evaluate()
+                eval_reward, all_eval_rewards, eval_steps = self.evaluate()
+                eval_reward_step_ratio = eval_reward / eval_steps
                 better_than_prior = False
-                if eval_reward > best_reward:
+                if eval_reward_step_ratio > best_reward_step_ratio:
                     best_eval_episode = current_episode
-                    best_reward = eval_reward
+                    best_reward_step_ratio = eval_reward_step_ratio
                     better_than_prior = True
                     self.savePolicyParams(policy_weights_filename)
 
                 if verbose:
                     _print_msg = (
-                        f"eval_reward: {eval_reward :.3f}| "
-                        f"best_reward: {best_reward :.3f} @ episode {best_eval_episode}| "
+                        f"best eval reward: {eval_reward :.3f} and steps: {eval_steps} @ episode {best_eval_episode}| "
                     )
                     if better_than_prior:
                         _print_msg += f"best model saved :)"

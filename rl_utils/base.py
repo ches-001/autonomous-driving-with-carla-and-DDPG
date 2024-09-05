@@ -74,14 +74,16 @@ class BaseTrainer:
     def train(self, *args, **kwargs) -> Tuple[Dict[str, Iterable], Dict[str, Iterable], Dict[str, Iterable]]:
         raise NotImplementedError
 
-    def evaluate(self, render_env: bool=False) -> Tuple[float, np.ndarray]:
+    def evaluate(self, render_env: bool=False) -> Tuple[float, np.ndarray, int]:
         obs_dict, _ = self.env.reset()
         obs_dict = self.format_obs_dict_fn(obs_dict)
         terminal_state = False
         total_rewards = 0
         all_total_rewards = np.zeros((4, ), dtype=np.float32)
+        steps = 0
         
         while not terminal_state:
+            steps += 1
             action = self.estimateAction(
                 obs_dict["cam_obs"], 
                 obs_dict["measurements"], 
@@ -98,7 +100,7 @@ class BaseTrainer:
                 break
         if render_env:
             self.env.close_render()
-        return total_rewards, all_total_rewards
+        return total_rewards, all_total_rewards, steps
 
     @classmethod
     def build_trainer(cls, *args, **kwargs):
