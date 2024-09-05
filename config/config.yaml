@@ -23,8 +23,8 @@ optim_config:
     weight_decay: 0.0
   
 env_config:
-  cam_w: 224
-  cam_h: 224
+  cam_w: 120
+  cam_h: 120
   fov: 110
   fps: 15
   filterv: model3
@@ -51,7 +51,7 @@ spawn_npc_config:
   filterw: walker.pedestrian.*
   
 trainer_config:
-  replay_buffer_size: 20_000
+  replay_buffer_size: 100_000
   clip_grads: True
   tau: 1.0e-3
   gamma: 0.99

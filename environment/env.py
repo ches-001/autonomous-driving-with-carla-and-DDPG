@@ -437,7 +437,7 @@ class CarlaEnv(gym.Env):
     def reward_func(self) -> float:
         speed_reward = self._speed_reward_func()
         deviation_reward = self._deviation_reward_func()
-        main_reward = (speed_reward + deviation_reward) / 2
+        main_reward = (speed_reward + deviation_reward + (0.25 * (self.waypoint_idx - self.prev_waypoint_idx)))  / 3
         self.all_rewards = np.asarray([
             speed_reward,
             deviation_reward,
