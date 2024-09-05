@@ -174,13 +174,16 @@ class DDPGTrainer(BaseTrainer):
                 action = self.actor(img, measurements, intention)
             action = action.detach()
 
-            if self.action_noise == "normal":
-                if current_step is None or max_steps is None:
-                    raise ValueError("current_step and max_steps are expected when action_noise == 'normal'")
-                noise = self.action_noise_fn(current_step, max_steps)
+            if with_noise:
+                if self.action_noise == "normal":
+                    if current_step is None or max_steps is None:
+                        raise ValueError("current_step and max_steps are expected when action_noise == 'normal'")
+                    noise = self.action_noise_fn(current_step, max_steps)
+                else:
+                    noise = self.action_noise_fn()
             else:
-                noise = self.action_noise_fn()
-            action = action + (noise if with_noise else 0.0)
+                noise = 0.0
+            action = action + noise
         return action.cpu()
     
 
