@@ -86,6 +86,16 @@ def main(config: Dict[str, Any], args: argparse.ArgumentParser):
         logger.info("building actor critic model(s)...")
         actor_critic = build_actor_critic(env, args.share_modules, config)
 
+        if isinstance(actor_critic, tuple):
+            actor, critic = actor_critic
+            actor_num_params = sum([i.numel() for i in actor.parameters()])
+            critic_num_params = sum([i.numel() for i in critic.parameters()])
+            logger.info(f"Num actor params: {actor_num_params}")
+            logger.info(f"Num critic params: {critic_num_params}")
+        else:
+            actor_critic_num_params = sum([i.numel() for i in actor_critic.parameters()])
+            logger.info(f"Num actor-critic params: {actor_critic_num_params}")
+
         logger.info("building RL trainer...")
         trainer = build_trainer(env, config, actor_critic)
 
