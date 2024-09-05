@@ -179,9 +179,9 @@ class ActorNetwork(_CommonModule):
         actor_weights = self._weights[intentions]
         actor_bias = self._bias[intentions]
 
-        output = torch.baddbmm(actor_bias, output, actor_weights).squeeze(dim=1)
-        steer = torch.tanh(output[..., :1])
-        throttle = torch.sigmoid(output[..., 1:])
+        output = torch.baddbmm(actor_bias, output, actor_weights).squeeze(dim=1).tanh()
+        steer = output[..., :1]
+        throttle = (output[..., 1:] + 1) / 2
         action = torch.cat([steer, throttle], dim=-1)
         return action
     
@@ -255,9 +255,9 @@ class ActorCriticNetwork(_CommonModule):
         intentions = intentions.squeeze(dim=1)
         actor_weights = self._actor_weights[intentions]
         actor_bias = self._actor_bias[intentions]
-        output = torch.baddbmm(actor_bias, output, actor_weights).squeeze(dim=1)
-        steer = torch.tanh(output[..., :1])
-        throttle = torch.sigmoid(output[..., 1:])
+        output = torch.baddbmm(actor_bias, output, actor_weights).squeeze(dim=1).tanh()
+        steer = output[..., :1]
+        throttle = (output[..., 1:] + 1) / 2
         action = torch.cat([steer, throttle], dim=-1)
         return action
     

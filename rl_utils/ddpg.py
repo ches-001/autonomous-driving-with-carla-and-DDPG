@@ -26,18 +26,18 @@ class DDPGTrainer(BaseTrainer):
                 actor_critic: Optional[ActorCriticNetwork]=None,
                 actor_optim_config: Optional[Dict[str, Any]]=None,
                 critic_optim_config: Optional[Dict[str, Any]]=None,
-                action_noise_config: Optional[Dict[str, Any]]=None,
-                action_noise_std: float=0.1,
                 replay_buffer_size: int=10_000,
                 clip_grads: bool=True,
                 tau: float=1e-3,
                 gamma: float=0.99, 
                 device: str="cpu",
-                buffer_device: str="cpu"
+                buffer_device: str="cpu",
+                action_noise: str="normal"
             ):
         
         assert (actor and critic) or actor_critic
         assert not ((actor and critic) and actor_critic)
+        assert action_noise in ["ou", "normal", "none"]
         if not torch.cuda.is_available():
             device = "cpu"
 
@@ -55,12 +55,24 @@ class DDPGTrainer(BaseTrainer):
         self.tau = tau
         self.gamma = gamma
         self.device = device
+        self.action_noise = action_noise
 
-        action_noise_config = {
-            "mu": torch.zeros(self.env.action_space.shape[0], device=self.device),
-            "sigma": torch.zeros(self.env.action_space.shape[0], device=self.device).fill_(action_noise_std)
-        }
-        self.action_noise = OrnsteinUhlenbeckNoise(**action_noise_config)
+        if self.action_noise == "ou":
+            action_noise_config = {
+                "mu": torch.zeros(self.env.action_space.shape[0], device=self.device),
+                "sigma": torch.zeros(self.env.action_space.shape[0], device=self.device).fill_(0.2)
+            }
+            self.action_noise_fn = OrnsteinUhlenbeckNoise(**action_noise_config)
+
+        elif self.action_noise == "normal":
+            self.action_noise_fn = lambda t, t_max : (1.0 - (t / t_max)) * torch.randn(
+                self.env.action_space.shape[0], dtype=torch.float32, device=self.device
+            )
+
+        else:
+            self.action_noise_fn = lambda : torch.zeros(
+                self.env.action_space.shape[0], dtype=torch.float32, device=self.device
+            )
             
         if actor_critic:
                 self.actor_critic.to(self.device)
@@ -146,6 +158,8 @@ class DDPGTrainer(BaseTrainer):
             measurements: torch.FloatTensor, 
             intention: torch.LongTensor,
             with_noise: bool=True,
+            current_step: Optional[int]=None,
+            max_steps: Optional[int]=None
         ) -> torch.FloatTensor:
 
         img = img.to(self.device)
@@ -159,8 +173,14 @@ class DDPGTrainer(BaseTrainer):
                 self.actor.eval()
                 action = self.actor(img, measurements, intention)
             action = action.detach()
-            noise = (self.action_noise() if with_noise else 0.0)
-            action = action + noise
+
+            if self.action_noise == "normal":
+                if current_step is None or max_steps is None:
+                    raise ValueError("current_step and max_steps are expected when action_noise == 'normal'")
+                noise = self.action_noise_fn(current_step, max_steps)
+            else:
+                noise = self.action_noise_fn()
+            action = action + (noise if with_noise else 0.0)
         return action.cpu()
     
 
@@ -273,7 +293,9 @@ class DDPGTrainer(BaseTrainer):
                     obs_dict["cam_obs"], 
                     obs_dict["measurements"], 
                     obs_dict["intention"],
-                    with_noise=True
+                    with_noise=True,
+                    current_step=current_step,
+                    max_steps=num_steps
                 )
                 u = action.squeeze().numpy()
                 next_obs_dict, reward, terminal_state, _ = self.env.step(u)
