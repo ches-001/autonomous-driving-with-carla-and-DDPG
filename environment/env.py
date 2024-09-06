@@ -69,7 +69,7 @@ class CarlaEnv(gym.Env):
         self.terminal_on_max_angle_deviation = terminal_on_max_angle_deviation
         self.terminal_on_max_center_deviation = terminal_on_max_center_deviation
 
-        self._terminal_allowance_steps = 100
+        self._terminal_allowance_steps = 40
         self.closed = False
         self._world = self._client.get_world()
         self._make_world_synchronous()
