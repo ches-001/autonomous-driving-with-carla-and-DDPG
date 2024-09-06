@@ -1,14 +1,10 @@
 import carla
 import cv2
 import math
-import logging
 import numpy as np
 from pygame.time import Clock
 from ..utils import get_actor_display_name
 from typing import List, Tuple, Optional
-
-
-logger = logging.getLogger(__name__)
 
 
 class CarlaEnvRender:
@@ -230,4 +226,4 @@ class CarlaEnvRender:
         try:
             cv2.destroyWindow("CarlaEnv")
         except Exception as e:
-            logger.error(e)
+            pass

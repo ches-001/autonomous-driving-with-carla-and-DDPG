@@ -340,6 +340,9 @@ class DDPGTrainer(BaseTrainer):
                         _print_msg + f" terminal msg: {self.env.terminal_reason}"
                     print(_print_msg, end="\r")
 
+            if train_render:
+                self.env.close_render()
+
             train_performance["reward"].append(episode_reward)
             train_performance["speed_reward"].append(all_rewards[0])
             train_performance["deviation_reward"].append(all_rewards[1])

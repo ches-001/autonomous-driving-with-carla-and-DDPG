@@ -440,13 +440,12 @@ class CarlaEnv(gym.Env):
 
 
     def render(self):
-        if not self.terminal_state:
-            return self.renderer.render(
-                self.vehicle, 
-                self.spectator_cam_obs, 
-                self.cam_obs , 
-                self.terminal_reason
-            )
+        return self.renderer.render(
+            self.vehicle, 
+            self.spectator_cam_obs, 
+            self.cam_obs , 
+            self.terminal_reason
+        )
 
 
     def close_render(self):
