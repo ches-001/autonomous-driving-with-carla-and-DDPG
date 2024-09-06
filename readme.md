@@ -78,9 +78,9 @@ v / v_{min} & \text{if } v < v_{vmin} \\ \\
 <br>
 <br>
 
-$$r_{dev} = \max{(1 - (\frac {dev(\vec{w_{d}}, \hspace{2mm} \vec{v})} {\theta_{max}}), \hspace{2mm} 0.0)} \cdot \max{(1 - (\frac {D(w_p, \hspace{2mm} x_p)} {d_{max}}), \hspace{2mm} 0.0)}$$
+$$r_{dev} = \max{(1 - (\frac {dev(\vec{w_{d}}, \hspace{2mm} \vec{v})} {\theta_{max}}), \hspace{2mm} 0.0)} \cdot ({wpi_i - wpi_{i-1}})$$
 
-Where: $dev(., .)$ and $D(., .)$ calculates the angle between two vectors and the euclidean distance between two points respectively, $\vec{w_d}$ is the waypoint forward direction vector, $\vec{v}$ is the velocity vector of the vehicle, $\theta_{max}$ is the maximum allowed deviation from waypoint direction, $cd_{max}$ is the maximum allowed deviation from center of lane, $w_p$ is the waypoint position in 3D space, $x_p$ is the position of vehicle in 3D space, $d_max$ is the maximum allowed disance between the vehicle and the corresponding waypoint along the route.
+Where: $dev(., .)$ and $D(., .)$ calculates the angle between two vectors and the euclidean distance between two points respectively, $\vec{w_d}$ is the waypoint forward direction vector, $\vec{v}$ is the velocity vector of the vehicle, $\theta_{max}$ is the maximum allowed deviation from waypoint direction, $cd_{max}$ is the maximum allowed deviation from center of lane, $w_p$ is the waypoint position in 3D space, $x_p$ is the position of vehicle in 3D space, $d_{max}$ is the maximum allowed disance between the vehicle and the corresponding waypoint along the route and  $wpi$ is the waypoint index.
 
 $$r_{col} = \begin{cases}
     -5 & \text{if } \text{collision} \\
