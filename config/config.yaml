@@ -5,7 +5,7 @@ model_config:
   img_enc_output_dim: 512
   measurement_enc_output_dim: 128
   action_enc_output_dim: 128
-  img_enc_dropout: 0.4
+  img_enc_dropout: 0.2
   measurement_enc_dropout: 0.1
   action_enc_dropout: 0.1
   block: BasicBlock
