@@ -55,6 +55,7 @@ class MeasurementEncoder(nn.Module):
 
         self._encoder = nn.Sequential(
             nn.Linear(in_features, out_features, bias=False),
+            nn.BatchNorm1d(out_features),
             nn.ReLU(),
             nn.Dropout(dropout)
         )
@@ -72,6 +73,7 @@ class ContinuousActionEncoder(nn.Module):
 
         self._encoder = nn.Sequential(
             nn.Linear(in_features, out_features, bias=True),
+            nn.BatchNorm1d(out_features),
             nn.Dropout(dropout),
             nn.LeakyReLU(0.2)
         )
@@ -89,6 +91,7 @@ class LatentRep(nn.Module):
 
         self._encoder = nn.Sequential(
             nn.Linear(in_features, out_features, bias=False),
+            nn.BatchNorm1d(out_features),
             nn.LeakyReLU(0.2)
         )
 
