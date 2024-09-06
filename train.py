@@ -79,8 +79,6 @@ def build_trainer(
 
 def main(config: Dict[str, Any], args: argparse.ArgumentParser):
     logger.info("building CarlaEnv...")
-    if args.render:
-        config["env_config"]["render_mode"] = "human"
     env = build_simulation_env(args.uri, args.port, config)
     try:
         logger.info("building actor critic model(s)...")
@@ -108,6 +106,8 @@ def main(config: Dict[str, Any], args: argparse.ArgumentParser):
             eval_interval=args.eval_interval,
             policy_weights_filename=args.policy_filename,
             verbose=(not args.no_verbose),
+            train_render=args.train_render,
+            eval_render=args.eval_render,
             close_env=True
         )
         trainer.saveMetrics(train_performance, "train_metrics.csv")
@@ -126,12 +126,13 @@ if __name__ == "__main__":
     parser.add_argument("--port", type=int, default=2_000, metavar="", help="Port number of carla server instance")
     parser.add_argument("--tm_port", type=int, default=8_000, metavar="", help="Port number for carla traffic manager API instance")
     parser.add_argument("--share_modules", action="store_true", help="When enabled it ensures that both actor and critic share inception modules")
-    parser.add_argument("--batch_size", type=int, default=32, metavar="", help="Sample batch size sampled from replay memory")
+    parser.add_argument("--batch_size", type=int, default=64, metavar="", help="Sample batch size sampled from replay memory")
     parser.add_argument("--num_steps", type=int, default=1_000_000, metavar="", help="Number of training episodes / cycles")
     parser.add_argument("--eval_interval", type=int, default=50, metavar="", help="Number of training episodes before evaluation")
     parser.add_argument("--policy_filename", type=str, default="CarlaAgent.pth.tar", metavar="", help="Filename to store policy weights")
     parser.add_argument("--no_verbose", action="store_true", help="Reduce training output verbosity")
-    parser.add_argument("--render", action="store_true", help="Render Environment")
+    parser.add_argument("--train_render", action="store_true", help="Render Environment during training")
+    parser.add_argument("--eval_render", action="store_true", help="Render Environment during evaluation")
     args = parser.parse_args()
 
     logging.basicConfig(level=logging.INFO, format=LOG_FORMAT, datefmt=LOG_DATE_FORMAT)

@@ -1,10 +1,14 @@
 import carla
 import cv2
 import math
+import logging
 import numpy as np
 from pygame.time import Clock
 from ..utils import get_actor_display_name
 from typing import List, Tuple, Optional
+
+
+logger = logging.getLogger(__name__)
 
 
 class CarlaEnvRender:
@@ -102,7 +106,7 @@ class CarlaEnvRender:
 
         # Draw the progress bar filled area (for throttle control)
         cv2.putText(
-            img, "Throttle", 
+            img, f"Throttle ({throttle :.3f})", 
             (self.throttle_bar_x, self.throttle_bar_y-int(15 * self.world_scale)), 
             self.font, self.font_scale, self.text_color, self.thickness
         )
@@ -118,7 +122,7 @@ class CarlaEnvRender:
 
         # Draw the progress bar filled area (for brake control)
         cv2.putText(
-            img, "Brake", 
+            img, f"Brake ({brake :.3f})", 
             (self.brake_bar_x, self.brake_bar_y-int(15 * self.world_scale)), 
             self.font, self.font_scale, self.text_color, self.thickness
         )
@@ -134,7 +138,7 @@ class CarlaEnvRender:
         
         # Draw the progress bar filled area (for steer control)
         cv2.putText(
-            img, "Steer", 
+            img, f"Steer ({steer :.3f})", 
             (self.steer_bar_x, self.steer_bar_y-int(15 * self.world_scale)), 
             self.font, self.font_scale, self.text_color, self.thickness
         )
@@ -223,4 +227,7 @@ class CarlaEnvRender:
 
 
     def close(self):
-        cv2.destroyWindow("CarlaEnv")
+        try:
+            cv2.destroyWindow("CarlaEnv")
+        except Exception as e:
+            logger.error(e)

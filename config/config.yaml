@@ -34,7 +34,6 @@ env_config:
   max_speed: 60.0
   target_speed: 25.0
   max_center_deviation: 4.0
-  max_distance_from_waypoint: 4.0
   max_center_angle_deviation: 90
   terminal_on_collision: True
   terminal_on_lane_invasion: False

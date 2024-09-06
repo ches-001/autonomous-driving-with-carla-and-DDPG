@@ -40,14 +40,12 @@ class CarlaEnv(gym.Env):
             max_speed: float=60.0,
             target_speed: float=25.0,
             max_center_deviation: float=3.0,
-            max_distance_from_waypoint: float=3.0,
             max_center_angle_deviation: float=90,
             terminal_on_collision: bool=True,
             terminal_on_lane_invasion: bool=True,
             terminal_on_max_speed: bool=True,
             terminal_on_max_angle_deviation: bool=False,
             terminal_on_max_center_deviation: bool=True,
-            render_mode: bool="none",
             render_scale: Optional[float]=None
         ):
         assert max_speed > target_speed > min_speed > 0
@@ -60,7 +58,6 @@ class CarlaEnv(gym.Env):
         self.filterv = filterv
         self.action_eps = action_eps
         self.max_travel_distance = max_travel_distance # m
-        self.max_distance_from_waypoint = max_distance_from_waypoint # m
         self.min_speed = min_speed # km/hr
         self.max_speed = max_speed # km/hr
         self.target_speed = target_speed # km/hr
@@ -71,9 +68,8 @@ class CarlaEnv(gym.Env):
         self.terminal_on_max_speed = terminal_on_max_speed
         self.terminal_on_max_angle_deviation = terminal_on_max_angle_deviation
         self.terminal_on_max_center_deviation = terminal_on_max_center_deviation
-        self.render_mode = render_mode
 
-        self._terminal_allowance_steps = 20
+        self._terminal_allowance_steps = 100
         self.closed = False
         self._world = self._client.get_world()
         self._make_world_synchronous()
@@ -81,7 +77,6 @@ class CarlaEnv(gym.Env):
         self.vehicle_blueprint = random.choice(self._blueprint_library.filter(self.filterv))
         self._map = self._world.get_map()
         self._actors = []
-
         self.observation_space = {
             "cam_obs": gym.spaces.Box(
                 np.zeros([self.cam_h, self.cam_w, 3], dtype=np.float32), 
@@ -102,13 +97,9 @@ class CarlaEnv(gym.Env):
             np.asarray([1, 1]),
             dtype=np.float32
         )
-
-        if self.render_mode == "human":
-            self.renderer = CarlaEnvRender(self._world, world_scale=render_scale)
-            self._spectator_cam_h = self.renderer.main_height
-            self._spectator_cam_w = self.renderer.main_width + self.renderer.side_panel_width
-        else:
-            self._spectator_cam_h, self._spectator_cam_w = 480, 640
+        self.renderer = CarlaEnvRender(self._world, world_scale=render_scale)
+        self._spectator_cam_h = self.renderer.main_height
+        self._spectator_cam_w = self.renderer.main_width + self.renderer.side_panel_width
 
 
     def reset(self) -> Tuple[Dict[str, np.ndarray], Dict[str, np.ndarray]]:
@@ -414,10 +405,7 @@ class CarlaEnv(gym.Env):
         route_length = len(self.route_waypoints)
         current_waypoint, _ = self.route_waypoints[self.waypoint_idx % route_length]
         wdirection = current_waypoint.transform.get_forward_vector()
-        wlocation = current_waypoint.transform.location
-        vlocation = self.vehicle.get_location()
         vvelocity = self.vehicle.get_velocity()
-        distance_from_wp = wlocation.distance(vlocation)
         deviation_angle = radian_angle_diff(to_vector(wdirection), to_vector(vvelocity))
         deviation_angle = abs(np.rad2deg(deviation_angle))
         
@@ -426,16 +414,15 @@ class CarlaEnv(gym.Env):
                 self.terminal_reason = "over-deviation of vehicle angle from waypoint"
                 self.terminal_state = True
 
-        distance_factor = max(1.0 - (distance_from_wp / self.max_distance_from_waypoint), 0.0)
         angle_factor = max(1.0 - deviation_angle / self.max_center_angle_deviation, 0.0)
-        reward = distance_factor * angle_factor
+        reward = (self.waypoint_idx - self.prev_waypoint_idx) * angle_factor
         return reward
 
 
     def reward_func(self) -> float:
         speed_reward = self._speed_reward_func()
         deviation_reward = self._deviation_reward_func()
-        main_reward = (speed_reward + deviation_reward + (0.25 * (self.waypoint_idx - self.prev_waypoint_idx)))  / 3
+        main_reward = (speed_reward + deviation_reward) / 2
         self.all_rewards = np.asarray([
             speed_reward,
             deviation_reward,
@@ -453,19 +440,21 @@ class CarlaEnv(gym.Env):
 
 
     def render(self):
-        if self.render_mode == "none":
-            return None
-        elif self.render_mode == "rgb_array":
-            return self.cam_obs
-        elif self.render_mode == "human":
-            self.renderer.render(self.vehicle, self.spectator_cam_obs, self.cam_obs , self.terminal_reason)
-        else:
-            raise Exception("Invalid render mode, expects one of ('human', 'rgb_array', 'none')")
+        if not self.terminal_state:
+            return self.renderer.render(
+                self.vehicle, 
+                self.spectator_cam_obs, 
+                self.cam_obs , 
+                self.terminal_reason
+            )
+
+
+    def close_render(self):
+        return self.renderer.close()
 
 
     def close(self):
-        if self.render_mode == "human":
-            self.renderer.close()
+        self.renderer.close()
         settings = self._world.get_settings()
         settings.synchronous_mode = False
         settings.fixed_delta_seconds = None

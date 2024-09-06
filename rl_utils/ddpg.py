@@ -265,6 +265,8 @@ class DDPGTrainer(BaseTrainer):
         eval_interval: int=10,
         policy_weights_filename: str="DDPG_policy.pth.tar",
         verbose: bool=True,
+        train_render: bool=False,
+        eval_render: bool=False,
         close_env: bool=False) -> Tuple[Dict[str, Iterable], Dict[str, Iterable]]:
         
         _template = {
@@ -302,7 +304,9 @@ class DDPGTrainer(BaseTrainer):
                 )
                 u = action.squeeze().numpy()
                 next_obs_dict, reward, terminal_state, _ = self.env.step(u)
-                self.env.render()
+                if train_render:
+                    self.env.render()
+
                 episode_reward += reward
                 all_rewards += self.env.all_rewards
                 next_obs_dict = self.format_obs_dict_fn(next_obs_dict)
@@ -343,7 +347,7 @@ class DDPGTrainer(BaseTrainer):
             train_performance["invasion_reward"].append(all_rewards[3])
 
             if current_episode % eval_interval==0:
-                eval_reward, all_eval_rewards, _ = self.evaluate()
+                eval_reward, all_eval_rewards, _ = self.evaluate(eval_render)
                 better_than_prior = False
                 if eval_reward > best_reward:
                     best_eval_episode = current_episode
