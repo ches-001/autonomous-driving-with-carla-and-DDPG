@@ -14,12 +14,12 @@ model_config:
 optim_config:
   actor:
     optim_name: Adam
-    lr: 1.0e-4
+    lr: 1.0e-5
     weight_decay: 0.0
 
   critic:
     optim_name: Adam
-    lr: 1.0e-4
+    lr: 1.0e-5
     weight_decay: 0.0
   
 env_config:
