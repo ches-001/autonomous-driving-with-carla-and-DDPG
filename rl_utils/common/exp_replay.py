@@ -122,11 +122,27 @@ class ExperienceReplayMemory:
         item["terminal_state"] = torch.tensor(terminal_state)
         self._memory.append(item)
 
-    def sampleRandomBatch(self, n_samples: int, device: str="cpu")->Optional[Dict[str, torch.Tensor]]:
+    def sampleRandomBatch(
+            self, 
+            n_samples: int, 
+            replacememnt: bool=False, 
+            device: str="cpu"
+        )->Optional[Dict[str, torch.Tensor]]:
+
         if len(self._memory) < 1:
             return None
-        buffer_size = self.__len__()
-        indexes = torch.randint(0, buffer_size, size=(n_samples, ))
+        
+        if (not hasattr(self, "_sample_weights") or
+            self._sample_weights.shape[0] < self._memory.maxlen):
+            self._sample_weights = torch.ones(
+                self.__len__(),
+                device=self._memory.device
+            )
+        indexes = torch.multinomial(
+            self._sample_weights, 
+            num_samples=n_samples, 
+            replacement=replacememnt
+        )
         batch = self._memory[indexes]
         for k in batch.keys():
             batch[k] = batch[k].to(device)

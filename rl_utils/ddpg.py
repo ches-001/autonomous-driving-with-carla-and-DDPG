@@ -322,7 +322,7 @@ class DDPGTrainer(BaseTrainer):
                     future_intention=next_obs_dict["intention"],
                     terminal_state=terminal_state,
                 )
-                if len(self._agent_buffer) > 0:
+                if len(self._agent_buffer) >= batch_size:
                     self.updateActorAndCritic(batch_size)
                 obs_dict = next_obs_dict.copy()
 
