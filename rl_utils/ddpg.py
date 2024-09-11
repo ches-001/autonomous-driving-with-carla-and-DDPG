@@ -334,7 +334,7 @@ class DDPGTrainer(BaseTrainer):
 
             while not terminal_state and current_step < num_steps:
                 if use_controller:
-                    target_speed = controller_config["target_speed"]
+                    target_speed = controller_config.get("target_speed", self.env.target_speed)
                     target_wp = info["next_wpos"]
                     steer_controller.compute_error(info["vpos"], info["vrot"], target_wp)
                     throttle_controller.compute_error(info["vvel"], target_speed)

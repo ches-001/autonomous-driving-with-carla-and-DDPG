@@ -61,6 +61,7 @@ spawn_npc_config:
   filterw: walker.pedestrian.*
 
 controller_config:
+  target_speed: 12
   interaction_prob: 0.5
   interaction_decay_rate: 1.0e-5
   lat:
