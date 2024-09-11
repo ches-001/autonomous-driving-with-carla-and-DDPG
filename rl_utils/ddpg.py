@@ -317,7 +317,7 @@ class DDPGTrainer(BaseTrainer):
             ci_decay_rate = controller_config["interaction_decay_rate"]
 
         while current_step < num_steps:
-            obs_dict, info = self.env.reset()
+            obs_dict, _ = self.env.reset()
             obs_dict = self.format_obs_dict_fn(obs_dict)
             episode_reward = 0
             all_rewards = np.zeros((4, ), dtype=np.float32)
@@ -338,11 +338,10 @@ class DDPGTrainer(BaseTrainer):
                     action = torch.from_numpy(u).unsqueeze(0)
                     next_obs_dict, reward, terminal_state, info = self.env.step(u)
                     target_speed = controller_config.get("target_speed", self.env.target_speed)
-                    target_wp = info["next_wpos"]
-                    steer_controller.compute_error(info["vpos"], info["vrot"], target_wp)
+                    steer_controller.compute_error(info["vpos"], info["vrot"], info["next_wpos"])
                     throttle_controller.compute_error(info["vvel"], target_speed)
                     steer = steer_controller.pid_control()
-                    throttle = steer_controller.pid_control()
+                    throttle = throttle_controller.pid_control()
                     u = np.asarray([steer, throttle], dtype=np.float32)
                 else:
                     action = self.estimateAction(
@@ -354,10 +353,10 @@ class DDPGTrainer(BaseTrainer):
                         max_steps=num_steps
                     )
                     u = action.squeeze().numpy()
-                    next_obs_dict, reward, terminal_state, info = self.env.step(u)
+                    next_obs_dict, reward, terminal_state, _ = self.env.step(u)
+                    
                 if train_render:
                     self.env.render()
-
                 episode_reward += reward
                 all_rewards += self.env.all_rewards
                 next_obs_dict = self.format_obs_dict_fn(next_obs_dict)
