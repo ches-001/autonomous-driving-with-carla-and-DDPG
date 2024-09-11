@@ -11,7 +11,6 @@ from .common.exp_replay import ExperienceReplayMemory
 from .common.noise import OrnsteinUhlenbeckNoise
 from datetime import timedelta
 from typing import *
-from .controller.pid import LateralPIDController, LongitudinalPIDController
 from modules.architecture import ActorNetwork, CriticNetwork, ActorCriticNetwork
     
 
@@ -292,8 +291,7 @@ class DDPGTrainer(BaseTrainer):
         verbose: bool=True,
         train_render: bool=False,
         eval_render: bool=False,
-        close_env: bool=False, 
-        controller_config: Optional[Dict[str, Any]]=None) -> Tuple[Dict[str, Iterable], Dict[str, Iterable]]:
+        close_env: bool=False) -> Tuple[Dict[str, Iterable], Dict[str, Iterable]]:
         
         _template = {
             "reward": [], 
@@ -303,7 +301,6 @@ class DDPGTrainer(BaseTrainer):
             "invasion_reward": [],
         }
         train_performance = copy.deepcopy(_template)
-        train_performance["controller_guidance"] = []
         eval_performance = copy.deepcopy(_template)
         eval_performance["better_than_prior"] = []
         best_reward = -np.inf
@@ -312,48 +309,25 @@ class DDPGTrainer(BaseTrainer):
         best_eval_episode = 0
         start_time = time.time()
 
-        if controller_config:
-            ci_prob = controller_config["interaction_prob"]
-            ci_decay_rate = controller_config["interaction_decay_rate"]
-
         while current_step < num_steps:
             obs_dict, _ = self.env.reset()
             obs_dict = self.format_obs_dict_fn(obs_dict)
             episode_reward = 0
             all_rewards = np.zeros((4, ), dtype=np.float32)
             terminal_state = False 
-            use_controller = False
             episode_step = 0
-            if controller_config:
-                steer_controller = LateralPIDController(**controller_config["lat"])
-                throttle_controller = LongitudinalPIDController(**controller_config["long"])
-                use_controller = np.random.uniform(0, 1) < ci_prob
-                if use_controller: print(f"Controller Interaction (interaction_prob: {ci_prob}): ")
-                else: print("Agent Interaction: ")
-                ci_prob *= (1 - ci_decay_rate)
-                u = np.asarray([0.0, 1.0], dtype=np.float32)
 
             while not terminal_state and current_step < num_steps:
-                if use_controller:
-                    action = torch.from_numpy(u).unsqueeze(0)
-                    next_obs_dict, reward, terminal_state, info = self.env.step(u)
-                    target_speed = controller_config.get("target_speed", self.env.target_speed)
-                    steer_controller.compute_error(info["vpos"], info["vrot"], info["next_wpos"])
-                    throttle_controller.compute_error(info["vvel"], target_speed)
-                    steer = steer_controller.pid_control()
-                    throttle = throttle_controller.pid_control()
-                    u = np.asarray([steer, throttle], dtype=np.float32)
-                else:
-                    action = self.estimateAction(
-                        obs_dict["cam_obs"], 
-                        obs_dict["measurements"], 
-                        obs_dict["intention"],
-                        with_noise=True,
-                        current_step=current_step,
-                        max_steps=num_steps
-                    )
-                    u = action.squeeze().numpy()
-                    next_obs_dict, reward, terminal_state, _ = self.env.step(u)
+                action = self.estimateAction(
+                    obs_dict["cam_obs"], 
+                    obs_dict["measurements"], 
+                    obs_dict["intention"],
+                    with_noise=True,
+                    current_step=current_step,
+                    max_steps=num_steps
+                )
+                u = action.squeeze().numpy()
+                next_obs_dict, reward, terminal_state, _ = self.env.step(u)
                     
                 if train_render:
                     self.env.render()
@@ -398,7 +372,6 @@ class DDPGTrainer(BaseTrainer):
             train_performance["deviation_reward"].append(all_rewards[1])
             train_performance["collision_reward"].append(all_rewards[2])
             train_performance["invasion_reward"].append(all_rewards[3])
-            train_performance["controller_guidance"].append(use_controller)
 
             if current_episode % eval_interval==0:
                 eval_reward, all_eval_rewards, _ = self.evaluate(eval_render)
