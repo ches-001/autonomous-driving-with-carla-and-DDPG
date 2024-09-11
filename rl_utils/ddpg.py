@@ -26,6 +26,8 @@ class DDPGTrainer(BaseTrainer):
                 actor_critic: Optional[ActorCriticNetwork]=None,
                 actor_optim_config: Optional[Dict[str, Any]]=None,
                 critic_optim_config: Optional[Dict[str, Any]]=None,
+                actor_lr_schedule_config: Optional[Dict[str, Any]]=None,
+                critic_lr_schedule_config: Optional[Dict[str, Any]]=None,
                 replay_buffer_size: int=10_000,
                 clip_grads: bool=True,
                 tau: float=1e-3,
@@ -118,6 +120,20 @@ class DDPGTrainer(BaseTrainer):
             critic_optim_config = copy.deepcopy(critic_optim_config)
             optim_name = critic_optim_config.pop("optim_name")
             self.critic_optimizer = getattr(torch.optim, optim_name)(self._critic_params, **critic_optim_config)
+
+        if actor_lr_schedule_config:
+            actor_lr_schedule_config = copy.deepcopy(actor_lr_schedule_config)
+            actor_scheduler_name = actor_lr_schedule_config.pop("name")
+            self.actor_lr_scheduler = getattr(torch.optim.lr_scheduler, actor_scheduler_name)(
+                self.actor_optimizer, **actor_lr_schedule_config
+            )
+
+        if critic_lr_schedule_config:
+            critic_lr_schedule_config = copy.deepcopy(critic_lr_schedule_config)
+            critic_scheduler_name = critic_lr_schedule_config.pop("name")
+            self.critic_lr_scheduler = getattr(torch.optim.lr_scheduler, critic_scheduler_name)(
+                self.critic_optimizer, **critic_lr_schedule_config
+            )
 
 
     def _untrackGrad(self, module: Optional[nn.Module]):
@@ -251,11 +267,18 @@ class DDPGTrainer(BaseTrainer):
         self.critic_optimizer.step()
         
 
-    def updateActorAndCritic(self, batch_size: int):
-        agent_experience = self._agent_buffer.sampleRandomBatch(batch_size, device=self.device)
-        self.updateCritic(agent_experience)
-        self.updateActor(agent_experience)
-        self._softTargetUpdate()
+    def updateActorAndCritic(self, batch_size: int, grad_steps: int=1):
+        for i in range(0, grad_steps):
+            agent_experience = self._agent_buffer.sampleRandomBatch(batch_size, device=self.device)
+            self.updateCritic(agent_experience)
+            self.updateActor(agent_experience)
+            self._softTargetUpdate()
+
+        if hasattr(self, "actor_lr_scheduler"):
+            self.actor_lr_scheduler.step()
+
+        if hasattr(self, "critic_lr_scheduler"):
+            self.critic_lr_scheduler.step()
 
 
     def train(
@@ -264,6 +287,7 @@ class DDPGTrainer(BaseTrainer):
         batch_size: int=32,
         eval_interval: int=10,
         policy_weights_filename: str="DDPG_policy.pth.tar",
+        grad_steps: int=1,
         verbose: bool=True,
         train_render: bool=False,
         eval_render: bool=False,
@@ -323,7 +347,7 @@ class DDPGTrainer(BaseTrainer):
                     terminal_state=terminal_state,
                 )
                 if len(self._agent_buffer) >= batch_size:
-                    self.updateActorAndCritic(batch_size)
+                    self.updateActorAndCritic(batch_size, grad_steps)
                 obs_dict = next_obs_dict.copy()
 
                 current_step += 1

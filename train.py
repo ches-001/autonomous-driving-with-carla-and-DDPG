@@ -63,6 +63,8 @@ def build_trainer(
             actor_critic=actor_critic, 
             actor_optim_config=config["optim_config"]["actor"], 
             critic_optim_config=config["optim_config"]["critic"],
+            actor_lr_schedule_config=config["lr_scheduler_config"]["actor"],
+            critic_lr_schedule_config=config["lr_scheduler_config"]["critic"],
             **config["trainer_config"]
         )
     else:
@@ -105,6 +107,7 @@ def main(config: Dict[str, Any], args: argparse.ArgumentParser):
             batch_size=args.batch_size,
             eval_interval=args.eval_interval,
             policy_weights_filename=args.policy_filename,
+            grad_steps=args.grad_steps,
             verbose=(not args.no_verbose),
             train_render=args.train_render,
             eval_render=args.eval_render,
@@ -127,8 +130,9 @@ if __name__ == "__main__":
     parser.add_argument("--tm_port", type=int, default=8_000, metavar="", help="Port number for carla traffic manager API instance")
     parser.add_argument("--share_modules", action="store_true", help="When enabled it ensures that both actor and critic share inception modules")
     parser.add_argument("--batch_size", type=int, default=64, metavar="", help="Sample batch size sampled from replay memory")
-    parser.add_argument("--num_steps", type=int, default=1_000_000, metavar="", help="Number of training episodes / cycles")
+    parser.add_argument("--num_steps", type=int, default=500_000, metavar="", help="Number of training episodes / cycles")
     parser.add_argument("--eval_interval", type=int, default=50, metavar="", help="Number of training episodes before evaluation")
+    parser.add_argument("--grad_steps", type=int, default=5, metavar="", help="Number of gradient update iterations")
     parser.add_argument("--policy_filename", type=str, default="CarlaAgent.pth.tar", metavar="", help="Filename to store policy weights")
     parser.add_argument("--no_verbose", action="store_true", help="Reduce training output verbosity")
     parser.add_argument("--train_render", action="store_true", help="Render Environment during training")

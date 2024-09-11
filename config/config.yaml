@@ -19,8 +19,19 @@ optim_config:
 
   critic:
     optim_name: Adam
-    lr: 1.0e-4
+    lr: 4.0e-3
     weight_decay: 0.0
+
+lr_scheduler_config:
+  actor:
+    T_max: 500_000
+    eta_min: 1.0e-06
+    name: CosineAnnealingLR
+
+  critic:
+    T_max: 500_000
+    eta_min: 1.0e-06
+    name: CosineAnnealingLR
   
 env_config:
   cam_w: 120
@@ -51,7 +62,7 @@ spawn_npc_config:
   
 trainer_config:
   replay_buffer_size: 100_000
-  clip_grads: False
+  clip_grads: True
   tau: 1.0e-3
   gamma: 0.99
   device: cuda
