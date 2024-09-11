@@ -59,6 +59,22 @@ spawn_npc_config:
   safe: True
   filterv: vehicle.*
   filterw: walker.pedestrian.*
+
+controller_config:
+  interaction_prob: 0.5
+  interaction_decay_rate: 1.0e-5
+  lat:
+    kp: 2.0
+    ki: 1.0
+    kd: 1.0
+    dt: 0.03
+    integral_horizon: 60
+  long:
+    kp: 2.0
+    ki: 1.0
+    kd: 1.0
+    dt: 0.03
+    integral_horizon: 60
   
 trainer_config:
   replay_buffer_size: 100_000

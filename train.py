@@ -111,7 +111,8 @@ def main(config: Dict[str, Any], args: argparse.ArgumentParser):
             verbose=(not args.no_verbose),
             train_render=args.train_render,
             eval_render=args.eval_render,
-            close_env=True
+            close_env=True,
+            controller_config=config["controller_config"] if args.controller_guide else None,
         )
         trainer.saveMetrics(train_performance, "train_metrics.csv")
         trainer.saveMetrics(eval_performance, "eval_metrics.csv")
@@ -134,6 +135,7 @@ if __name__ == "__main__":
     parser.add_argument("--eval_interval", type=int, default=50, metavar="", help="Number of training episodes before evaluation")
     parser.add_argument("--grad_steps", type=int, default=1, metavar="", help="Number of gradient update iterations")
     parser.add_argument("--policy_filename", type=str, default="CarlaAgent.pth.tar", metavar="", help="Filename to store policy weights")
+    parser.add_argument("--controller_guide", action="store_true", help="Use a PID controller to guide exploration")
     parser.add_argument("--no_verbose", action="store_true", help="Reduce training output verbosity")
     parser.add_argument("--train_render", action="store_true", help="Render Environment during training")
     parser.add_argument("--eval_render", action="store_true", help="Render Environment during evaluation")
