@@ -331,10 +331,11 @@ class DDPGTrainer(BaseTrainer):
                 if use_controller: print(f"Controller Interaction (interaction_prob: {ci_prob}): ")
                 else: print("Agent Interaction: ")
                 ci_prob *= (1 - ci_decay_rate)
-                u = torch.tensor([0.0, 1.0], dtype=torch.float32)
+                u = np.asarray([0.0, 1.0], dtype=np.float32)
 
             while not terminal_state and current_step < num_steps:
                 if use_controller:
+                    action = torch.from_numpy(u).unsqueeze(0)
                     next_obs_dict, reward, terminal_state, info = self.env.step(u)
                     target_speed = controller_config.get("target_speed", self.env.target_speed)
                     target_wp = info["next_wpos"]
@@ -342,8 +343,7 @@ class DDPGTrainer(BaseTrainer):
                     throttle_controller.compute_error(info["vvel"], target_speed)
                     steer = steer_controller.pid_control()
                     throttle = steer_controller.pid_control()
-                    action = torch.tensor([steer, throttle], dtype=torch.float32).unsqueeze(0)
-                    u = action.squeeze().numpy()
+                    u = np.asarray([steer, throttle], dtype=np.float32)
                 else:
                     action = self.estimateAction(
                         obs_dict["cam_obs"], 
