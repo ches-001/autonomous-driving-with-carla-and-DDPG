@@ -323,11 +323,11 @@ class DDPGTrainer(BaseTrainer):
             all_rewards = np.zeros((4, ), dtype=np.float32)
             terminal_state = False 
             use_controller = False
+            episode_step = 0
             if controller_config:
                 steer_controller = LateralPIDController(**controller_config["lat"])
                 throttle_controller = LongitudinalPIDController(**controller_config["long"])
                 use_controller = np.random.uniform(0, 1) < ci_prob
-                episode_step = 0
                 if use_controller: print(f"Controller Interaction (interaction_prob: {ci_prob}): ")
                 else: print("Agent Interaction: ")
                 ci_prob *= (1 - ci_decay_rate)
