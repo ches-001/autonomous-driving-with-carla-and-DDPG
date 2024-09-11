@@ -24,12 +24,12 @@ optim_config:
 
 lr_scheduler_config:
   actor:
-    T_max: 500_000
+    T_max: 100_000
     eta_min: 1.0e-06
     name: CosineAnnealingLR
 
   critic:
-    T_max: 500_000
+    T_max: 100_000
     eta_min: 1.0e-06
     name: CosineAnnealingLR
   
@@ -61,7 +61,7 @@ spawn_npc_config:
   filterw: walker.pedestrian.*
   
 trainer_config:
-  replay_buffer_size: 100_000
+  replay_buffer_size: 30_000
   clip_grads: True
   tau: 1.0e-3
   gamma: 0.99
