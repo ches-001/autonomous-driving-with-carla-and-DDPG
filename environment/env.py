@@ -173,7 +173,7 @@ class CarlaEnv(gym.Env):
         self.prev_velocity = to_vector(self.vehicle.get_velocity())
 
         # call step function with no action, retrieve first observation
-        obs, info, *_ = self.step(None)
+        obs, *_, info = self.step(None)
         return obs, info
     
 
