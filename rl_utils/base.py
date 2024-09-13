@@ -74,13 +74,13 @@ class BaseTrainer:
 
     def evaluate(self, render_env: bool=False) -> Tuple[float, np.ndarray, int]:
         obs_dict, _ = self.env.reset()
-        obs_dict = self.format_obs_dict_fn(obs_dict)
         terminal_state = False
         total_rewards = 0
         all_total_rewards = np.zeros((4, ), dtype=np.float32)
         steps = 0
         
         while not terminal_state:
+            obs_dict = self.format_obs_dict_fn(obs_dict)
             steps += 1
             action = self.estimateAction(
                 obs_dict["cam_obs"], 
@@ -89,7 +89,7 @@ class BaseTrainer:
                 with_noise=False
             )
             u = action.squeeze().cpu().numpy()
-            _, reward, terminal_state, _ = self.env.step(u)
+            obs_dict, reward, terminal_state, _ = self.env.step(u)
             total_rewards += reward
             all_total_rewards += self.env.all_rewards
             if render_env:
