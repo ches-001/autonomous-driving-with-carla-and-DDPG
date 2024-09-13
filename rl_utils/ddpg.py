@@ -8,7 +8,8 @@ import numpy as np
 import torch.nn.functional as F
 from .base import BaseTrainer
 from .common.exp_replay import ExperienceReplayMemory
-from .common.noise import OrnsteinUhlenbeckNoise
+from .common.noise import BaseNoise, NoNoise
+from .common.utils import polyak_averaging, bn_running_stats_polyak_averaging
 from datetime import timedelta
 from typing import *
 from modules.architecture import ActorNetwork, CriticNetwork, ActorCriticNetwork
@@ -29,17 +30,17 @@ class DDPGTrainer(BaseTrainer):
                 actor_lr_schedule_config: Optional[Dict[str, Any]]=None,
                 critic_lr_schedule_config: Optional[Dict[str, Any]]=None,
                 replay_buffer_size: int=10_000,
+                action_noise_fn: Optional[BaseNoise]=None,
                 clip_grads: bool=True,
                 tau: float=1e-3,
                 gamma: float=0.99, 
+                target_critic_redution: str="mean",
                 device: str="cpu",
                 buffer_device: str="cpu",
-                action_noise: str="normal"
             ):
         
         assert (actor and critic) or actor_critic
         assert not ((actor and critic) and actor_critic)
-        assert action_noise in ["ou", "normal", "none"]
         if not torch.cuda.is_available():
             device = "cpu"
 
@@ -57,40 +58,23 @@ class DDPGTrainer(BaseTrainer):
         self.tau = tau
         self.gamma = gamma
         self.device = device
-        self.action_noise = action_noise
-
-        if self.action_noise == "ou":
-            action_noise_config = {
-                "mu": torch.zeros(self.env.action_space.shape[0], device=self.device),
-                "sigma": torch.zeros(self.env.action_space.shape[0], device=self.device).fill_(0.2)
-            }
-            self.action_noise_fn = OrnsteinUhlenbeckNoise(**action_noise_config)
-
-        elif self.action_noise == "normal":
-            mu = torch.zeros(self.env.action_space.shape[0], dtype=torch.float32, device=self.device)
-            std = torch.zeros(self.env.action_space.shape[0], dtype=torch.float32, device=self.device).fill_(0.5)
-            self.action_noise_fn = lambda t, t_max : (1.0 - (t / t_max)) * torch.normal(mu, std)
-
-        else:
-            self.action_noise_fn = lambda : torch.zeros(
-                self.env.action_space.shape[0], dtype=torch.float32, device=self.device
-            )
+        self.target_critic_redution = target_critic_redution
+        self.action_noise_fn = action_noise_fn or NoNoise()
             
         if actor_critic:
                 self.actor_critic.to(self.device)
                 self.target_actor_critic.to(self.device)
+                # in a shared feature extractor configuration, only the actor updates the
+                # feature extractors (image_encoder, _measurement_encoder and _latent_rep)
                 self._actor_params = (
                     list(self.actor_critic._image_encoder.parameters()) + 
                     list(self.actor_critic._measurement_encoder.parameters()) +
-                    list(self.actor_critic._actor_latent_rep.parameters()) +
+                    list(self.actor_critic._latent_rep.parameters()) +
                     [self.actor_critic._actor_weights, ] +
                     [self.actor_critic._actor_bias, ]
                 )
                 self._critic_params = (
-                    list(self.actor_critic._image_encoder.parameters()) + 
-                    list(self.actor_critic._measurement_encoder.parameters()) +
                     list(self.actor_critic._action_encoder.parameters()) +
-                    list(self.actor_critic._critic_latent_rep.parameters()) +
                     [self.actor_critic._critic_weights, ] +
                     [self.actor_critic._critic_bias, ]
                 )
@@ -151,21 +135,14 @@ class DDPGTrainer(BaseTrainer):
 
     def _softTargetUpdate(self):
         if not self.actor_critic:
-            for target_actor_param, actor_param in zip(self.target_actor.parameters(), self.actor.parameters()):
-                target_actor_param.data.copy_(
-                    target_actor_param.data * (1.0 - self.tau) + actor_param.data * self.tau
-                )
-            
-            for target_critic_param, critic_param in zip(self.target_critic.parameters(), self.critic.parameters()):
-                target_critic_param.data.copy_(
-                    target_critic_param.data * (1.0 - self.tau) + critic_param.data * self.tau
-                )
+            polyak_averaging(self.actor, self.target_actor, self.tau)
+            polyak_averaging(self.critic, self.target_critic, self.tau)
+            bn_running_stats_polyak_averaging(self.actor, self.target_actor, self.tau)
+            bn_running_stats_polyak_averaging(self.critic, self.target_critic, self.tau)
+
         else:
-            zipped_params = zip(self.target_actor_critic.parameters(), self.actor_critic.parameters())
-            for target_actor_critic_param, actor_critic_param in zipped_params:
-                target_actor_critic_param.data.copy_(
-                    target_actor_critic_param.data * (1.0 - self.tau) + actor_critic_param.data * self.tau
-                )
+            polyak_averaging(self.actor_critic, self.target_actor_critic, self.tau)
+            bn_running_stats_polyak_averaging(self.actor_critic, self.target_actor_critic, self.tau)
     
 
     def estimateAction(
@@ -174,8 +151,6 @@ class DDPGTrainer(BaseTrainer):
             measurements: torch.FloatTensor, 
             intention: torch.LongTensor,
             with_noise: bool=True,
-            current_step: Optional[int]=None,
-            max_steps: Optional[int]=None
         ) -> torch.FloatTensor:
 
         img = img.to(self.device)
@@ -188,19 +163,17 @@ class DDPGTrainer(BaseTrainer):
             else:
                 self.actor.eval()
                 action = self.actor(img, measurements, intention)
-            action = action.detach()
+            action = action.detach().cpu()
 
-            if with_noise:
-                if self.action_noise == "normal":
-                    if current_step is None or max_steps is None:
-                        raise ValueError("current_step and max_steps are expected when action_noise == 'normal'")
-                    noise = self.action_noise_fn(current_step, max_steps)
-                else:
-                    noise = self.action_noise_fn()
+            if with_noise and self.action_noise_fn:  
+                noise = self.action_noise_fn()
             else:
                 noise = 0.0
             action = action + noise
-        return action.cpu()
+            low = torch.from_numpy(self.env.action_space.low)
+            high = torch.from_numpy(self.env.action_space.high) 
+            action = torch.clip(action, low, high)
+        return action
     
 
     def updateActor(self, agent_experience: Dict[str, torch.Tensor]): 
@@ -211,13 +184,17 @@ class DDPGTrainer(BaseTrainer):
         }
         if self.actor_critic:
             self.actor_critic.train()
-            agent_actions: torch.Tensor = self.actor_critic.actor_forward(**_module_input)
-            policy_objective: torch.Tensor = self.actor_critic.critic_forward(actions=agent_actions, **_module_input)
+            agent_actions = self.actor_critic.actor_forward(**_module_input)
+            policy_objective = self.actor_critic.critic_forward(
+                actions=agent_actions, use_all_critics=False, **_module_input
+            )
             policy_loss = -policy_objective.mean()
         else:
             self.actor.train()
-            agent_actions: torch.Tensor = self.actor(**_module_input)
-            policy_objective: torch.Tensor = self.critic(actions=agent_actions, **_module_input)
+            agent_actions = self.actor(**_module_input)
+            policy_objective = self.critic(
+                actions=agent_actions, use_all_critics=False, **_module_input
+            )
             policy_loss = -policy_objective.mean()
 
         self.actor_optimizer.zero_grad()
@@ -245,19 +222,23 @@ class DDPGTrainer(BaseTrainer):
        
         if self.actor_critic:
             self.actor_critic.train()
-            q_values = self.actor_critic.critic_forward(actions=actions, **_module_input)
+            q_values = self.actor_critic.critic_forward(actions=actions, reduction="none", **_module_input)
             with torch.no_grad():
                 agent_future_actions = self.target_actor_critic.actor_forward(**_future_module_input)
-                future_q_values = self.target_actor_critic.critic_forward(actions=agent_future_actions, **_future_module_input)
+                future_q_values = self.target_actor_critic.critic_forward(
+                    actions=agent_future_actions, reduction=self.target_critic_redution, **_future_module_input
+                )
         else:
             self.critic.train()
-            q_values = self.critic(actions=actions, **_module_input)
+            q_values = self.critic(actions=actions, reduction="none", **_module_input)
             with torch.no_grad():
                 agent_future_actions = self.target_actor(**_future_module_input)
-                future_q_values = self.target_critic(actions=agent_future_actions, **_future_module_input)
+                future_q_values = self.target_critic(
+                    actions=agent_future_actions, reduction=self.target_critic_redution, **_future_module_input
+                )
 
         value_target = rewards + (self.gamma * future_q_values * (1 - terminal_states))
-        value_loss = F.mse_loss(q_values, value_target.detach())
+        value_loss = sum([F.mse_loss(q_est, value_target) for q_est in q_values])
         
         self.critic_optimizer.zero_grad()
         value_loss.backward()
@@ -317,14 +298,13 @@ class DDPGTrainer(BaseTrainer):
             terminal_state = False 
             episode_step = 0
 
+            self.action_noise_fn.reset()
             while not terminal_state and current_step < num_steps:
                 action = self.estimateAction(
                     obs_dict["cam_obs"], 
                     obs_dict["measurements"], 
                     obs_dict["intention"],
                     with_noise=True,
-                    current_step=current_step,
-                    max_steps=num_steps
                 )
                 u = action.squeeze().numpy()
                 next_obs_dict, reward, terminal_state, _ = self.env.step(u)

@@ -115,6 +115,7 @@ class _CommonModule(nn.Module):
             img_enc_dropout: float=0.0,
             measurement_enc_dropout: float=0.0,
             action_enc_dropout: float=0.0,
+            num_critics: Optional[int]=None,
             **kwargs
         ):
         super(_CommonModule, self).__init__()
@@ -127,6 +128,7 @@ class _CommonModule(nn.Module):
         self.img_enc_output_dim = img_enc_output_dim
         self.measurement_enc_output_dim = measurement_enc_output_dim
         self.action_enc_output_dim = action_enc_output_dim
+        self.num_critics = num_critics
 
         self._image_encoder = ImageEncoder(
             in_channels, img_enc_output_dim, dropout=img_enc_dropout, **kwargs
@@ -136,7 +138,6 @@ class _CommonModule(nn.Module):
         )
         self.latent_rep_dim = img_enc_output_dim + measurement_enc_output_dim
         if action_enc_output_dim:
-            self.latent_rep_dim += action_enc_output_dim
             self._action_encoder = ContinuousActionEncoder(
                 action_dim, action_enc_output_dim, dropout=action_enc_dropout or 0.0
             )
@@ -146,11 +147,12 @@ class _CommonModule(nn.Module):
             self, 
             num_intentions: int, 
             input_dim: int,
-            output_dim: int
+            output_dim: int,
+            num_layers: int=1
         ) -> Tuple[torch.Tensor, torch.Tensor]:
 
-        ws = torch.zeros(num_intentions, input_dim, output_dim)
-        bs = torch.zeros(num_intentions, 1, output_dim)
+        ws = torch.zeros(num_layers, num_intentions, input_dim, output_dim)
+        bs = torch.zeros(num_layers, num_intentions, 1, output_dim)
         nn.init.kaiming_uniform_(ws, a=math.sqrt(5))
         nn.init.kaiming_uniform_(bs, a=math.sqrt(5))
         _weights = nn.Parameter(ws, requires_grad=True)
@@ -165,7 +167,7 @@ class ActorNetwork(_CommonModule):
     def __init__(self, *args, **kwargs):
         super(ActorNetwork, self).__init__(*args, **kwargs)
         self._weights, self._bias =  self._generate_output_params(
-            self.num_intentions, self.hidden_dim, self.action_dim
+            self.num_intentions, self.hidden_dim, self.action_dim, num_layers=1
         )
 
     def forward(
@@ -173,19 +175,20 @@ class ActorNetwork(_CommonModule):
             cam_obs: torch.FloatTensor, 
             measurements: torch.FloatTensor, 
             intentions: torch.LongTensor,
-        ) -> torch.Tensor:
+        ) -> torch.FloatTensor:
 
         img_enc_output = self._image_encoder(cam_obs)
         measurement_enc_output = self._measurement_encoder(measurements)
-        output = torch.concat([img_enc_output, measurement_enc_output], dim=1)
-        output = self._latent_rep(output)
-        output = output.unsqueeze(dim=1)
-
+        fmap = self._latent_rep(torch.cat([img_enc_output, measurement_enc_output], dim=1))
         intentions = intentions.squeeze(dim=1)
-        actor_weights = self._weights[intentions]
-        actor_bias = self._bias[intentions]
+        output = torch.stack([
+            torch.baddbmm(
+                self._bias[i, intentions], 
+                fmap.unsqueeze(dim=1), 
+                self._weights[i, intentions]
+            ).squeeze(dim=1).tanh() for i in range(0, self._weights.shape[0])
+        ], dim=1).mean(dim=1)
 
-        output = torch.baddbmm(actor_bias, output, actor_weights).squeeze(dim=1).tanh()
         steer = output[..., :1]
         throttle = (output[..., 1:] + 1) / 2
         action = torch.cat([steer, throttle], dim=-1)
@@ -195,9 +198,9 @@ class ActorNetwork(_CommonModule):
 class CriticNetwork(_CommonModule):
     def __init__(self, *args, **kwargs):
         super(CriticNetwork, self).__init__(*args, **kwargs)
-
+        self.num_critics = self.num_critics or 1
         self._weights, self._bias = self._generate_output_params(
-            self.num_intentions, self.hidden_dim, 1
+            self.num_intentions, self.hidden_dim+self.action_enc_output_dim, 1, num_layers=self.num_critics
         )
 
     def forward(
@@ -205,63 +208,63 @@ class CriticNetwork(_CommonModule):
             cam_obs: torch.FloatTensor, 
             measurements: torch.FloatTensor, 
             intentions: torch.LongTensor,
-            actions: torch.FloatTensor
-        ) -> torch.Tensor:
-
+            actions: torch.FloatTensor,
+            reduction: str="mean",
+            use_all_critics: bool=True
+        ) -> Union[List[torch.FloatTensor], torch.FloatTensor]:
+        # setting reduction to amax or amin can lead to overestimation or underestimation
+        # bias, usually the latter is more preferable than the former. reduction=mean is a
+        # more balanced choice, but just because it is balanced does not mean it is more
+        # suitable, since it doesn't properly handle Q overestimation and understimation
+        # like amin and amax respectively
+        assert reduction in ["mean", "amin", "amax", "none"]
         img_enc_output = self._image_encoder(cam_obs)
         measurement_enc_output = self._measurement_encoder(measurements)
-        action_enc_output = self._action_encoder(actions)
-        output = torch.concat(
-            [
-                img_enc_output, 
-                measurement_enc_output, 
-                action_enc_output
-            ], dim=1
-        )
-        output = self._latent_rep(output)
-        output = output.unsqueeze(dim=1)
-
+        fmap = self._latent_rep(torch.cat([img_enc_output, measurement_enc_output], dim=1))
+        qnet_input = torch.cat([fmap, self._action_encoder(actions)], dim=1)
         intentions = intentions.squeeze(dim=1)
-        critic_weights = self._weights[intentions]
-        critic_bias = self._bias[intentions]
-        
-        output = torch.baddbmm(critic_bias, output, critic_weights)
-        return output
+        output = [
+            torch.baddbmm(
+                self._bias[i, intentions], 
+                qnet_input.unsqueeze(dim=1), 
+                self._weights[i, intentions]
+            ).squeeze(dim=1) for i in range(0, self._weights.shape[0] if use_all_critics else 1)
+        ]
+        if reduction == "none":
+            if len(output) == 1:
+                return output[0]
+            return output
+        return getattr(torch.cat(output, dim=1), reduction)(dim=1, keepdim=True)
 
 
 class ActorCriticNetwork(_CommonModule):
     def __init__(self, *args, **kwargs):
         super(ActorCriticNetwork, self).__init__(*args, **kwargs)
-
-        _ad = (self.img_enc_output_dim + self.measurement_enc_output_dim)
-        self._actor_latent_rep = LatentRep(_ad, self.hidden_dim)
+        self.num_critics = self.num_critics or 1
         self._actor_weights, self._actor_bias = self._generate_output_params(
-            self.num_intentions, self.hidden_dim, self.action_dim
+            self.num_intentions, self.hidden_dim, self.action_dim, num_layers=1
         )
-        _cd = (self.img_enc_output_dim + self.measurement_enc_output_dim + self.action_enc_output_dim)
-        self._critic_latent_rep = LatentRep(_cd, self.hidden_dim)
         self._critic_weights, self._critic_bias = self._generate_output_params(
-            self.num_intentions, self.hidden_dim, 1
+            self.num_intentions, self.hidden_dim+self.action_enc_output_dim, 1, num_layers=self.num_critics
         )
-        del self._latent_rep, self.latent_rep_dim
 
     def actor_forward(
             self, 
             cam_obs: torch.FloatTensor, 
             measurements: torch.FloatTensor, 
             intentions: torch.LongTensor,
-    ) -> torch.Tensor:
-        
+    ) -> torch.FloatTensor:
         img_enc_output = self._image_encoder(cam_obs)
         measurement_enc_output = self._measurement_encoder(measurements)
-        output = torch.concat([img_enc_output, measurement_enc_output], dim=1)
-        output = self._actor_latent_rep(output)
-        output = output.unsqueeze(dim=1)
-
+        fmap = self._latent_rep(torch.cat([img_enc_output, measurement_enc_output], dim=1))
         intentions = intentions.squeeze(dim=1)
-        actor_weights = self._actor_weights[intentions]
-        actor_bias = self._actor_bias[intentions]
-        output = torch.baddbmm(actor_bias, output, actor_weights).squeeze(dim=1).tanh()
+        output = torch.stack([
+            torch.baddbmm(
+                self._actor_bias[i, intentions], 
+                fmap.unsqueeze(dim=1), 
+                self._actor_weights[i, intentions]
+            ).squeeze(dim=1).tanh() for i in range(0, self._actor_weights.shape[0])
+        ], dim=1).mean(dim=1)
         steer = output[..., :1]
         throttle = (output[..., 1:] + 1) / 2
         action = torch.cat([steer, throttle], dim=-1)
@@ -272,25 +275,35 @@ class ActorCriticNetwork(_CommonModule):
             cam_obs: torch.FloatTensor, 
             measurements: torch.FloatTensor, 
             intentions: torch.LongTensor,
-            actions: torch.FloatTensor
-        ) -> torch.Tensor:
-
-        img_enc_output = self._image_encoder(cam_obs)
-        measurement_enc_output = self._measurement_encoder(measurements)
-        action_enc_output = self._action_encoder(actions)
-        output = torch.concat(
-            [
-                img_enc_output, 
-                measurement_enc_output, 
-                action_enc_output
-            ], dim=1
-        )
-        output = self._critic_latent_rep(output)
-        output = output.unsqueeze(dim=1)
-
+            actions: torch.FloatTensor,
+            reduction: str="mean",
+            use_all_critics: bool=True
+        ) -> Union[List[torch.FloatTensor], torch.FloatTensor]:
+        # setting reduction to "amax" or "amin" can lead to overestimation or underestimation
+        # bias, usually the latter is more preferable than the former. reduction="mean" is a
+        # more balanced choice, but just because it is balanced does not mean it is more
+        # suitable or better, since it doesn't properly handle Q-value overestimation and 
+        # understimation like amin and amax respectively
+        assert reduction in ["mean", "amin", "amax", "none"]
+        # since the actor and critic share these two layers, we let only the actor 
+        # update function update, hence we disable the gradient computation for the 
+        # critic.
+        with torch.set_grad_enabled(False):
+            img_enc_output = self._image_encoder(cam_obs)
+            measurement_enc_output = self._measurement_encoder(measurements)
+            fmap = torch.cat([img_enc_output, measurement_enc_output], dim=1)
+            fmap = self._latent_rep(fmap)            
+        qnet_input = torch.cat([fmap, self._action_encoder(actions)], dim=1)
         intentions = intentions.squeeze(dim=1)
-        critic_weights = self._critic_weights[intentions]
-        critic_bias = self._critic_bias[intentions]
-        
-        output = torch.baddbmm(critic_bias, output, critic_weights)
-        return output
+        output = [
+            torch.baddbmm(
+                self._critic_bias[i, intentions], 
+                qnet_input.unsqueeze(dim=1), 
+                self._critic_weights[i, intentions]
+            ).squeeze(dim=1) for i in range(0, self._critic_weights.shape[0] if use_all_critics else 1)
+        ]
+        if reduction == "none":
+            if len(output) == 1:
+                return output[0]
+            return output
+        return getattr(torch.cat(output, dim=1), reduction)(dim=1, keepdim=True)

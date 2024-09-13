@@ -12,6 +12,7 @@ import multiprocessing as mp
 from environment.env import CarlaEnv
 from environment.spawn import spawn_npcs
 from modules.architecture import ActorNetwork, CriticNetwork, ActorCriticNetwork
+from rl_utils.common import noise
 from rl_utils import DDPGTrainer
 from typing import *
 
@@ -34,7 +35,7 @@ def build_simulation_env(uri: str, port: int, config: Dict[str, Any]) -> CarlaEn
 
 def build_actor_critic(
         env: CarlaEnv, 
-        share_modules: bool, 
+        share_fe: bool, 
         config: Dict[str, Any]) -> Union[ActorCriticNetwork, Tuple[ActorNetwork, CriticNetwork]]:
     
     config = copy.deepcopy(config["model_config"])
@@ -44,11 +45,12 @@ def build_actor_critic(
         num_intentions=env.observation_space["intention"].n,
         action_dim=env.action_space.shape[0]
     ))
-    if share_modules:
+    if share_fe:
         actor_critic = ActorCriticNetwork(**config)
         return actor_critic
     critic = CriticNetwork(**config)
-    config["action_enc_output_dim"] = None
+    config.pop("action_enc_output_dim")
+    config.pop("num_critics")
     actor = ActorNetwork(**config)
     return actor, critic
 
@@ -57,6 +59,20 @@ def build_trainer(
         config: Dict[str, Any],
         actor_critic: Union[ActorCriticNetwork, Tuple[ActorNetwork, CriticNetwork]]) -> DDPGTrainer:
     
+    action_noise_config = config["action_noise_config"].copy()
+    action_noise_name = action_noise_config.pop("name")
+
+    if "mu" in action_noise_config:
+        action_noise_config["mu"] = torch.zeros(
+            env.action_space.shape[0], 
+            dtype=torch.float32).fill_(action_noise_config["mu"])
+        
+    if "std" in action_noise_config:
+        action_noise_config["std"] = torch.zeros(
+            env.action_space.shape[0], 
+            dtype=torch.float32).fill_(action_noise_config["std"])
+        
+    action_noise_fn = getattr(noise, action_noise_name)(**action_noise_config)
     if not isinstance(actor_critic, tuple):
         trainer = DDPGTrainer(
             env, 
@@ -65,6 +81,7 @@ def build_trainer(
             critic_optim_config=config["optim_config"]["critic"],
             actor_lr_schedule_config=config["lr_scheduler_config"]["actor"],
             critic_lr_schedule_config=config["lr_scheduler_config"]["critic"],
+            action_noise_fn=action_noise_fn,
             **config["trainer_config"]
         )
     else:
@@ -75,6 +92,7 @@ def build_trainer(
             critic=critic,
             actor_optim_config=config["optim_config"]["actor"], 
             critic_optim_config=config["optim_config"]["critic"],
+            action_noise_fn=action_noise_fn,
             **config["trainer_config"]
         )
     return trainer
@@ -84,7 +102,7 @@ def main(config: Dict[str, Any], args: argparse.ArgumentParser):
     env = build_simulation_env(args.uri, args.port, config)
     try:
         logger.info("building actor critic model(s)...")
-        actor_critic = build_actor_critic(env, args.share_modules, config)
+        actor_critic = build_actor_critic(env, args.share_fe, config)
 
         if isinstance(actor_critic, tuple):
             actor, critic = actor_critic
@@ -128,7 +146,7 @@ if __name__ == "__main__":
     parser.add_argument("--uri", type=str, default="localhost", metavar="", help="URI of carla server instance")
     parser.add_argument("--port", type=int, default=2_000, metavar="", help="Port number of carla server instance")
     parser.add_argument("--tm_port", type=int, default=8_000, metavar="", help="Port number for carla traffic manager API instance")
-    parser.add_argument("--share_modules", action="store_true", help="When enabled it ensures that both actor and critic share inception modules")
+    parser.add_argument("--share_fe", action="store_true", help="Actor and Critic share feature extraction modules")
     parser.add_argument("--batch_size", type=int, default=64, metavar="", help="Sample batch size sampled from replay memory")
     parser.add_argument("--num_steps", type=int, default=500_000, metavar="", help="Number of training episodes / cycles")
     parser.add_argument("--eval_interval", type=int, default=50, metavar="", help="Number of training episodes before evaluation")
@@ -137,6 +155,7 @@ if __name__ == "__main__":
     parser.add_argument("--no_verbose", action="store_true", help="Reduce training output verbosity")
     parser.add_argument("--train_render", action="store_true", help="Render Environment during training")
     parser.add_argument("--eval_render", action="store_true", help="Render Environment during evaluation")
+    parser.add_argument("--no_npcs", action="store_true", help="Used to not spawn NPCs when training")
     args = parser.parse_args()
 
     logging.basicConfig(level=logging.INFO, format=LOG_FORMAT, datefmt=LOG_DATE_FORMAT)
@@ -151,7 +170,7 @@ if __name__ == "__main__":
         torch.backends.cudnn.benchmark = False
         torch.backends.cudnn.deterministic = True
 
-    spawn_event = mp.Event()
+    spawn_event = mp.Event() if not args.no_npcs else None
     spawn_npc_config = config["spawn_npc_config"].copy()
     spawn_npc_config.update({
         "host":args.uri, 
@@ -160,11 +179,14 @@ if __name__ == "__main__":
         "spawn_event": spawn_event, 
         "rl_training": True
     })
-    npc_spawn_process = mp.Process(target=spawn_npcs, kwargs=spawn_npc_config, daemon=True)
-    npc_spawn_process.start()
-    
-    # wait for npc spawn function to create all npc actors before commencing training
-    spawn_event.wait()
-    logger.info("NPCs have been spawned successfully")
+    if not args.no_npcs:
+        npc_spawn_process = mp.Process(target=spawn_npcs, kwargs=spawn_npc_config, daemon=True)
+        npc_spawn_process.start()
+        # wait for npc spawn function to create all npc actors before commencing training
+        spawn_event.wait()
+        logger.info("NPCs have been spawned successfully")
+        
     main(config, args)
-    npc_spawn_process.terminate()
+
+    if not args.no_npcs:
+        npc_spawn_process.terminate()
