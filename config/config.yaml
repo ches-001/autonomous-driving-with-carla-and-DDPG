@@ -6,7 +6,7 @@ model_config:
   measurement_enc_output_dim: 128
   action_enc_output_dim: 128
   num_critics: 4
-  img_enc_dropout: 0.2
+  img_enc_dropout: 0.1
   measurement_enc_dropout: 0.1
   action_enc_dropout: 0.1
   block: BasicBlock
@@ -55,7 +55,7 @@ env_config:
   max_center_deviation: 4.0
   max_center_angle_deviation: 90
   terminal_on_collision: True
-  terminal_on_lane_invasion: False
+  terminal_on_lane_invasion: True
   terminal_on_max_speed: True
   terminal_on_max_angle_deviation: False
   terminal_on_max_center_deviation: True
@@ -69,7 +69,7 @@ spawn_npc_config:
   filterw: walker.pedestrian.*
   
 trainer_config:
-  replay_buffer_size: 100_000
+  replay_buffer_size: 200_000
   clip_grads: True
   tau: 1.0e-3
   gamma: 0.99
