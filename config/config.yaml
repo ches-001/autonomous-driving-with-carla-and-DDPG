@@ -15,22 +15,22 @@ model_config:
 optim_config:
   actor:
     optim_name: Adam
-    lr: 1.0e-4
+    lr: 1.0e-3
     weight_decay: 0.0
 
   critic:
     optim_name: Adam
-    lr: 4.0e-3
+    lr: 1.0e-3
     weight_decay: 0.0
 
 lr_scheduler_config:
   actor:
-    T_max: 500_000
+    T_max: 1_000_000
     eta_min: 1.0e-06
     name: CosineAnnealingLR
 
   critic:
-    T_max: 500_000
+    T_max: 1_000_000
     eta_min: 1.0e-06
     name: CosineAnnealingLR
 

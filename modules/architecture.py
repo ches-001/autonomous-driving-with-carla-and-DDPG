@@ -280,14 +280,14 @@ class ActorCriticNetwork(_CommonModule):
             use_all_critics: bool=True
         ) -> Union[List[torch.FloatTensor], torch.FloatTensor]:
         # setting reduction to "amax" or "amin" can lead to overestimation or underestimation
-        # bias, usually the latter is more preferable than the former. reduction="mean" is a
-        # more balanced choice, but just because it is balanced does not mean it is more
-        # suitable or better, since it doesn't properly handle Q-value overestimation and 
-        # understimation like amin and amax respectively
+        # bias respectively, usually the latter is more preferable than the former.
+        # reduction="mean" is a more balanced choice, but just because it is balanced does not
+        # mean it is more suitable or better, since it doesn't properly handle Q-value overestimation
+        #  and understimation like amin and amax respectively
         assert reduction in ["mean", "amin", "amax", "none"]
         # since the actor and critic share these two layers, we let only the actor 
-        # update function update, hence we disable the gradient computation for the 
-        # critic.
+        # update function update them, hence we disable the gradient computation for 
+        # the critic.
         with torch.set_grad_enabled(False):
             img_enc_output = self._image_encoder(cam_obs)
             measurement_enc_output = self._measurement_encoder(measurements)

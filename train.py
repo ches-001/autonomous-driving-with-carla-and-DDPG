@@ -148,7 +148,7 @@ if __name__ == "__main__":
     parser.add_argument("--tm_port", type=int, default=8_000, metavar="", help="Port number for carla traffic manager API instance")
     parser.add_argument("--share_fe", action="store_true", help="Actor and Critic share feature extraction modules")
     parser.add_argument("--batch_size", type=int, default=128, metavar="", help="Sample batch size sampled from replay memory")
-    parser.add_argument("--num_steps", type=int, default=500_000, metavar="", help="Number of training episodes / cycles")
+    parser.add_argument("--num_steps", type=int, default=1_000_000, metavar="", help="Number of training episodes / cycles")
     parser.add_argument("--eval_interval", type=int, default=50, metavar="", help="Number of training episodes before evaluation")
     parser.add_argument("--grad_steps", type=int, default=1, metavar="", help="Number of gradient update iterations")
     parser.add_argument("--policy_filename", type=str, default="CarlaAgent.pth.tar", metavar="", help="Filename to store policy weights")
