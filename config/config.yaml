@@ -61,6 +61,12 @@ env_config:
   terminal_on_max_center_deviation: True
   render_scale: 1.0
 
+wrappers_config:
+  frame_stack:
+    num_stack: 3
+  repeat_actions:
+    num_repeats: 3
+
 spawn_npc_config:
   num_vehicles: 50
   num_walkers: 50
@@ -69,7 +75,7 @@ spawn_npc_config:
   filterw: walker.pedestrian.*
   
 trainer_config:
-  replay_buffer_size: 200_000
+  replay_buffer_size: 100_000
   clip_grads: True
   tau: 1.0e-3
   gamma: 0.99

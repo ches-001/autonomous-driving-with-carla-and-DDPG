@@ -79,9 +79,9 @@ class CarlaEnv(gym.Env):
         self._actors = []
         self.observation_space = {
             "cam_obs": gym.spaces.Box(
-                np.zeros([self.cam_h, self.cam_w, 3], dtype=np.float32), 
-                np.ones([self.cam_h, self.cam_w, 3], dtype=np.float32), 
-                dtype=np.float32
+                np.zeros([self.cam_h, self.cam_w, 3], dtype=np.uint8), 
+                np.zeros([self.cam_h, self.cam_w, 3], dtype=np.uint8) + 255, 
+                dtype=np.uint8
             ),
             #[linear-velocity]
             "measurements": gym.spaces.Box(
@@ -102,6 +102,10 @@ class CarlaEnv(gym.Env):
         self._spectator_cam_w = self.renderer.main_width + self.renderer.side_panel_width
 
 
+    def get_env_world(self) -> carla.World:
+        return self._world
+
+
     def reset(self) -> Tuple[Dict[str, np.ndarray], Dict[str, np.ndarray]]:
         self.in_simulation_time = 0
         self.terminal_state = False
@@ -112,7 +116,7 @@ class CarlaEnv(gym.Env):
         self.collision_reward = 0
         self.lane_invasion_reward = 0
         self.terminal_reason = "none"
-        self.all_rewards = np.asarray([])
+        self._all_rewards = np.asarray([])
 
         spawnable_position = False
         npc_actors = self._world.get_actors()
@@ -177,7 +181,11 @@ class CarlaEnv(gym.Env):
         return obs, info
     
 
-    def step(self, action: Optional[np.ndarray]=None) -> Tuple[Dict[str, np.ndarray], float, bool, Dict[str, np.ndarray]]:
+    def step(
+            self, 
+            action: Optional[np.ndarray]=None, 
+            render_frame: bool=False
+        ) -> Tuple[Dict[str, np.ndarray], float, bool, Dict[str, np.ndarray]]:
         route_length = len(self.route_waypoints)
 
         if action is not None:
@@ -235,7 +243,7 @@ class CarlaEnv(gym.Env):
         reward = self.reward_func()
         # collect data to be returned
         waypoint, _ = self.route_waypoints[self.waypoint_idx % route_length]
-        next_waypoint, next_maneuver = self.route_waypoints[(self.waypoint_idx + 1) % route_length]
+        _, next_maneuver = self.route_waypoints[(self.waypoint_idx + 1) % route_length]
 
         velocity = to_vector(self.vehicle.get_velocity())
         speed = 3.6 * np.sqrt((velocity**2).sum())
@@ -256,9 +264,7 @@ class CarlaEnv(gym.Env):
             "vvel": to_vector(self.vehicle.get_velocity()),
             "wpos": to_vector(waypoint.transform.location),
             "wrot": to_vector(waypoint.transform.rotation),
-            "next_wpos": to_vector(next_waypoint.transform.location),
-            "next_wrot": to_vector(next_waypoint.transform.rotation),
-            "all_rewards": self.all_rewards,
+            "all_rewards": self._all_rewards,
             "closed": self.closed
         }
 
@@ -277,6 +283,16 @@ class CarlaEnv(gym.Env):
 
         # update the insimulation time (not the actual simulation time observed by the client)
         self.in_simulation_time += (1 / self.fps)
+
+        # render frame
+        if render_frame:
+            if not self.terminal_state:
+                self.render()
+            else:
+                try:
+                    self.close_render()
+                except Exception as e:
+                    logger.error(e)
         return obs, reward, self.terminal_state, info
 
 
@@ -423,7 +439,7 @@ class CarlaEnv(gym.Env):
         speed_reward = self._speed_reward_func()
         deviation_reward = self._deviation_reward_func()
         main_reward = (speed_reward + deviation_reward) / 2
-        self.all_rewards = np.asarray([
+        self._all_rewards = np.asarray([
             speed_reward,
             deviation_reward,
             self.collision_reward,
@@ -462,6 +478,7 @@ class CarlaEnv(gym.Env):
         for actor in self._actors:
             actor.destroy()
         self.closed = True
+        logger.info("Environment has been closed")
         
 
     @staticmethod

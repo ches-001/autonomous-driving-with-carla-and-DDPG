@@ -11,6 +11,7 @@ import numpy as np
 import multiprocessing as mp
 from environment.env import CarlaEnv
 from environment.spawn import spawn_npcs
+from environment.wrappers import FrameStackWrapper, RepeatActionWrapper
 from modules.architecture import ActorNetwork, CriticNetwork, ActorCriticNetwork
 from rl_utils.common import noise
 from rl_utils import DDPGTrainer
@@ -31,7 +32,13 @@ def load_config(path: str) -> Dict[str, Any]:
     return config
 
 def build_simulation_env(uri: str, port: int, config: Dict[str, Any]) -> CarlaEnv:
-    return CarlaEnv.make_env_with_client(uri, port, **config["env_config"])
+    env = CarlaEnv.make_env_with_client(uri, port, **config["env_config"])
+    wrappers_config = config["wrappers_config"]
+    if wrappers_config["frame_stack"]["num_stack"]:
+       env = FrameStackWrapper(env, wrappers_config["frame_stack"]["num_stack"])
+    if wrappers_config["repeat_actions"]["num_repeats"]:
+        env = RepeatActionWrapper(env, wrappers_config["repeat_actions"]["num_repeats"])
+    return env
 
 def build_actor_critic(
         env: CarlaEnv, 
@@ -97,7 +104,7 @@ def build_trainer(
         )
     return trainer
 
-def main(config: Dict[str, Any], args: argparse.ArgumentParser):
+def main(config: Dict[str, Any], args: argparse.Namespace):
     logger.info("building CarlaEnv...")
     env = build_simulation_env(args.uri, args.port, config)
     try:

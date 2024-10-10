@@ -51,7 +51,7 @@ class MeasurementEncoder(nn.Module):
     def __init__(self, in_features: int, out_features: int, dropout: float=0.0):
         super(MeasurementEncoder, self).__init__()
         self.in_features = in_features
-        self.out_features =  out_features
+        self.out_features = out_features
 
         self._encoder = nn.Sequential(
             nn.Linear(in_features, out_features, bias=False),

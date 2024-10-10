@@ -89,15 +89,11 @@ class BaseTrainer:
                 with_noise=False
             )
             u = action.squeeze().cpu().numpy()
-            obs_dict, reward, terminal_state, _ = self.env.step(u)
+            obs_dict, reward, terminal_state, info = self.env.step(u, render_env)
             total_rewards += reward
-            all_total_rewards += self.env.all_rewards
-            if render_env:
-                self.env.render()
+            all_total_rewards += info["all_rewards"]
             if terminal_state:
                 break
-        if render_env:
-            self.env.close_render()
         return total_rewards, all_total_rewards, steps
 
     @classmethod

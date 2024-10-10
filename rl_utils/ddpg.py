@@ -307,12 +307,9 @@ class DDPGTrainer(BaseTrainer):
                     with_noise=True,
                 )
                 u = action.squeeze().numpy()
-                next_obs_dict, reward, terminal_state, _ = self.env.step(u)
-                    
-                if train_render:
-                    self.env.render()
+                next_obs_dict, reward, terminal_state, info = self.env.step(u, train_render)
                 episode_reward += reward
-                all_rewards += self.env.all_rewards
+                all_rewards += info["all_rewards"]
                 next_obs_dict = self.format_obs_dict_fn(next_obs_dict)
 
                 self._agent_buffer.updateMemory(
