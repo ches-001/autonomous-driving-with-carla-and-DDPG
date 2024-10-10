@@ -459,7 +459,7 @@ class CarlaEnv(gym.Env):
         return self.renderer.render(
             self.vehicle, 
             self.spectator_cam_obs, 
-            self.cam_obs , 
+            self.cam_obs, 
             self.terminal_reason
         )
 
